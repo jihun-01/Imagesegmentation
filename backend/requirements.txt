@@ -1,0 +1,33 @@
+# 가상 시계 착용 AI 시스템 필수 패키지들
+
+# 웹 API 프레임워크
+fastapi>=0.104.0
+uvicorn>=0.24.0
+python-multipart>=0.0.6
+
+# 딥러닝 및 컴퓨터 비전
+ultralytics>=8.0.0
+opencv-python>=4.8.0
+mediapipe>=0.10.0
+
+# 수치 계산 및 이미지 처리
+numpy>=1.24.0
+scipy>=1.10.0
+pillow>=10.0.0
+
+# 시각화
+matplotlib>=3.7.0
+
+# PyTorch (GPU 가속용)
+torch>=2.0.0
+torchvision>=0.15.0
+
+# MySQL 및 인증 관련 패키지 추가
+pymysql
+SQLAlchemy==2.0.23
+alembic
+python-jose[cryptography]
+passlib[bcrypt]
+
+# 환경변수 관리
+python-dotenv>=1.0.0
