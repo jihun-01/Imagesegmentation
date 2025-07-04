@@ -16,6 +16,7 @@ import LightAlert from '../Common/LightAlert/LightAlert';
 import ConfirmModal from '../Common/ConfirmModal';
 import useFadeAlert from '../Hooks/useFadeAlert';
 import FadeAlert from '../Common/FadeAlert/FadeAlert';
+import shoppingcarticon from '../Assets/icons/shppingcarticon.png';
 
 /**
  * 찜목록 개별 아이템 컴포넌트 (이미지 리사이징 적용)
@@ -64,24 +65,35 @@ const WishlistItem = ({ item, onRemove, onAddToCart, onProductClick, isProcessin
                 {formatPrice(item.product.price)}
               </p>
             </div>
-            
-            {/* 찜 해제 버튼 */}
-            <button
-              onClick={() => onRemove(item.product.id, item.id)}
-              disabled={isProcessing === 'removing'}
-              className="text-red-400 hover:text-red-600 transition-colors p-1 disabled:opacity-50"
-            >
-              {isProcessing === 'removing' ? (
-                <div className="w-5 h-5 animate-spin border-2 border-current border-t-transparent rounded-full"></div>
-              ) : (
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                </svg>
-              )}
-            </button>
+            <div className="flex flex-col items-end space-y-2">
+              {/* 찜 해제 버튼 */}
+              <button
+                onClick={() => onRemove(item.product.id, item.id)}
+                disabled={isProcessing === 'removing'}
+                className="w-8 h-8 p-1 rounded text-red-400 hover:text-red-600 transition-colors disabled:opacity-50 flex items-center justify-center"
+              >
+                {isProcessing === 'removing' ? (
+                  <div className="w-5 h-5 animate-spin border-2 border-current border-t-transparent rounded-full"></div>
+                ) : (
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                  </svg>
+                )}
+              </button>
+              {/* 장바구니 추가 버튼 (shoppingcarticon) */}
+              <button
+                onClick={() => onAddToCart(item.product, item.id)}
+                disabled={isProcessing === 'adding'}
+                className="w-8 h-8 p-1 rounded hover:bg-gray-100 transition-colors disabled:opacity-50 flex items-center justify-center"
+              >
+                {isProcessing === 'adding' ? (
+                  <div className="w-5 h-5 animate-spin border-2 border-gray-400 border-t-transparent rounded-full"></div>
+                ) : (
+                  <img src={shoppingcarticon} alt="장바구니" className="w-5 h-5" />
+                )}
+              </button>
+            </div>
           </div>
-
-
         </div>
       </div>
     </div>
@@ -294,7 +306,7 @@ const Wishlist = () => {
         show={showAlert}
         message={alertMessage}
         type={alertType}
-        position="top"
+        position="bottom"
       />
       <ConfirmModal
         show={confirmModal.show}

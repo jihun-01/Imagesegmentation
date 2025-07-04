@@ -3,12 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { registerUser } from '../utils/api';
 import { validateEmail, validatePassword, escapeHtml } from '../utils/security';
 import JH from '../components/Assets/icons/JH.png';
+import useFadeAlert from '../components/Hooks/useFadeAlert';
+import FadeAlert from '../components/Common/FadeAlert/FadeAlert';
 
-const notready = () => {
-  alert('준비중입니다.')
-}
-
-// 회원가입 페이지 컴포넌트
 const Regist = () => {
   const navigate = useNavigate();
   
@@ -23,7 +20,11 @@ const Regist = () => {
   });
   
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const { showFadeAlert, alertMessage, alertType, showAlert } = useFadeAlert();
+
+  const notready = () => {
+    showFadeAlert('준비중입니다.', 'error');
+  };
 
   // 입력값 변경 핸들러
   const handleInputChange = (e) => {
@@ -38,23 +39,22 @@ const Regist = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
 
     // 입력값 검증
     if (!formData.username || formData.username.length < 3) {
-      setError('닉네임은 3자 이상 입력해주세요.');
+      showFadeAlert('닉네임은 3자 이상 입력해주세요.', 'error');
       setLoading(false);
       return;
     }
 
     if (!validateEmail(formData.email)) {
-      setError('올바른 이메일 형식을 입력해주세요.');
+      showFadeAlert('올바른 이메일 형식을 입력해주세요.', 'error');
       setLoading(false);
       return;
     }
 
     if (!formData.name || formData.name.length < 2) {
-      setError('이름은 2자 이상 입력해주세요.');
+      showFadeAlert('이름은 2자 이상 입력해주세요.', 'error');
       setLoading(false);
       return;
     }
@@ -62,21 +62,21 @@ const Regist = () => {
     // 비밀번호 강도 검증
     const passwordValidation = validatePassword(formData.password);
     if (!passwordValidation.isValid) {
-      setError(passwordValidation.errors.join(' '));
+      showFadeAlert(passwordValidation.errors.join(' '), 'error');
       setLoading(false);
       return;
     }
 
     // 비밀번호 확인
     if (formData.password !== formData.passwordcheck) {
-      setError('비밀번호가 일치하지 않습니다.');
+      showFadeAlert('비밀번호가 일치하지 않습니다.', 'error');
       setLoading(false);
       return;
     }
 
     // 이용약관 동의 확인
     if (!formData.terms) {
-      setError('이용약관에 동의해주세요.');
+      showFadeAlert('이용약관에 동의해주세요.', 'error');
       setLoading(false);
       return;
     }
@@ -94,11 +94,11 @@ const Regist = () => {
       await registerUser(userData);
       
       // 회원가입 성공
-      alert('회원가입이 완료되었습니다. 로그인해주세요.');
+      showFadeAlert('회원가입이 완료되었습니다. 로그인해주세요.', 'success');
       navigate('/login');
       
     } catch (error) {
-      setError(error.message || '회원가입 중 오류가 발생했습니다.');
+      showFadeAlert(error.message || '회원가입 중 오류가 발생했습니다.', 'error');
     } finally {
       setLoading(false);
     }
@@ -127,13 +127,6 @@ const Regist = () => {
             <h2 className="text-3xl font-bold mb-2">회원가입</h2>
             <p className="text-gray-500">이메일로 회원가입</p>
           </div>
-
-          {/* 에러 메시지 */}
-          {error && (
-            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
-              {error}
-            </div>
-          )}
 
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
@@ -272,6 +265,13 @@ const Regist = () => {
           </div>
         </div>
       </div>
+
+      <FadeAlert
+        show={showAlert}
+        message={alertMessage}
+        type={alertType}
+        position="bottom"
+      />
     </div>
   );
 };

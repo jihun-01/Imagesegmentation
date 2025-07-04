@@ -315,7 +315,7 @@ const Cart = () => {
           show={showAlert}
           message={alertMessage}
           type={alertType}
-          position="top"
+          position="bottom"
         />
         <ConfirmModal
           show={confirmModal.show}

@@ -3,15 +3,13 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { validateEmail, escapeHtml } from '../../utils/security';
 import JH from '../Assets/icons/JH.png';
+import useFadeAlert from '../Hooks/useFadeAlert';
+import FadeAlert from '../Common/FadeAlert/FadeAlert';
 
-const notready = () => {
-  alert('준비중입니다.')
-}
-
-// 로그인 페이지 컴포넌트
 const Login = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
+  const { showFadeAlert, alertMessage, alertType, showAlert } = useFadeAlert();
   
   // 폼 상태 관리
   const [formData, setFormData] = useState({
@@ -58,6 +56,7 @@ const Login = () => {
       // 로그인 성공 시 메인 페이지로 이동
       navigate('/');
       
+      showFadeAlert('로그인에 성공했습니다.', 'success');
     } catch (error) {
       // 에러 메시지 파싱 및 표시
       let errorMessage = '로그인 중 오류가 발생했습니다.';
@@ -77,9 +76,14 @@ const Login = () => {
       }
       
       setError(errorMessage);
+      showFadeAlert(errorMessage, 'error');
     } finally {
       setLoading(false);
     }
+  };
+
+  const notready = () => {
+    showFadeAlert('준비중입니다.', 'error');
   };
 
   return (
@@ -190,6 +194,12 @@ const Login = () => {
           </p>
         </div>
       </div>
+      <FadeAlert
+        show={showAlert}
+        message={alertMessage}
+        type={alertType}
+        position="bottom"
+      />
     </>
   );
 };
