@@ -8,6 +8,8 @@ import os
 from torchvision.ops import nms
 import torch
 import io
+import signal
+import time
 
 class HandWatchSegmentation:
     def __init__(self):
@@ -94,6 +96,13 @@ class HandWatchSegmentation:
                 hand_points = np.array(hand_points)
                 hull = cv2.convexHull(hand_points)
                 cv2.fillPoly(hand_mask, [hull], (255,))
+        
+        # 손 마스크에 GrabCut 후처리 적용 (선택적)
+        if np.sum(hand_mask) > 0:
+            try:
+                hand_mask = self._apply_grabcut_to_hand(image, hand_mask)
+            except Exception as e:
+                print(f"손 GrabCut 적용 실패, 기본 마스크 사용: {e}")
         
         return image, hand_mask, wrist_info
     
@@ -237,6 +246,7 @@ class HandWatchSegmentation:
         if np.sum(mask) == 0:
             return mask
         
+        # 기본 모폴로지 연산
         kernel = np.ones((5, 5), np.uint8)
         mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=1)
         mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel, iterations=1)
@@ -255,10 +265,194 @@ class HandWatchSegmentation:
                 kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (20, 20))
                 improved_mask = cv2.dilate(improved_mask, kernel, iterations=1)
             
+            # GrabCut 후처리 적용 (선택적)
+            try:
+                improved_mask = self._apply_grabcut_refinement(image, improved_mask)
+            except Exception as e:
+                print(f"GrabCut 적용 실패, 기본 마스크 사용: {e}")
+            
             return improved_mask
         
         return mask
-
+    
+    def _apply_grabcut_refinement(self, image, initial_mask):
+        """GrabCut을 사용하여 마스크를 정교하게 개선합니다."""
+        try:
+            print("GrabCut 시계 마스크 개선 시작...")
+            
+            # 이미지 크기가 너무 크면 리사이즈
+            max_size = 800
+            h, w = image.shape[:2]
+            if max(h, w) > max_size:
+                scale = max_size / max(h, w)
+                new_h, new_w = int(h * scale), int(w * scale)
+                resized_image = cv2.resize(image, (new_w, new_h))
+                resized_mask = cv2.resize(initial_mask, (new_w, new_h))
+                print(f"이미지 리사이즈: {w}x{h} -> {new_w}x{new_h}")
+            else:
+                resized_image = image
+                resized_mask = initial_mask
+            
+            # 초기 마스크를 GrabCut 형식으로 변환
+            # 0: 배경, 1: 전경, 2: 확실한 배경, 3: 확실한 전경
+            grabcut_mask = np.zeros(resized_image.shape[:2], dtype=np.uint8)
+            
+            # 초기 마스크에서 확실한 전경 설정
+            grabcut_mask[resized_mask > 0] = cv2.GC_PR_FGD
+            
+            # 마스크 경계 주변을 확실한 전경으로 설정
+            kernel = np.ones((3, 3), np.uint8)
+            dilated_mask = cv2.dilate(resized_mask, kernel, iterations=2)
+            eroded_mask = cv2.erode(resized_mask, kernel, iterations=2)
+            
+            # 확실한 전경 (eroded 영역)
+            grabcut_mask[eroded_mask > 0] = cv2.GC_FGD
+            
+            # 확실한 배경 (dilated 영역 밖)
+            grabcut_mask[dilated_mask == 0] = cv2.GC_BGD
+            
+            # 배경 모델과 전경 모델 초기화
+            bgd_model = np.zeros((1, 65), dtype=np.float64)
+            fgd_model = np.zeros((1, 65), dtype=np.float64)
+            
+            print("GrabCut 실행 중...")
+            # GrabCut 실행 (반복 횟수 줄임, 타임아웃 적용)
+            start_time = time.time()
+            rect = self._get_bounding_rect_from_mask(resized_mask)
+            
+            try:
+                if rect is not None:
+                    cv2.grabCut(resized_image, grabcut_mask, rect, bgd_model, fgd_model, iterCount=3, mode=cv2.GC_INIT_WITH_RECT)
+                else:
+                    # rect가 None인 경우 마스크 모드로 실행
+                    cv2.grabCut(resized_image, grabcut_mask, (0, 0, resized_image.shape[1], resized_image.shape[0]), bgd_model, fgd_model, iterCount=3, mode=cv2.GC_INIT_WITH_MASK)
+                
+                elapsed_time = time.time() - start_time
+                print(f"GrabCut 실행 시간: {elapsed_time:.2f}초")
+                
+            except Exception as e:
+                print(f"GrabCut 실행 중 오류: {e}")
+                return initial_mask
+            
+            print("GrabCut 완료, 결과 마스크 생성 중...")
+            # 결과 마스크 생성
+            refined_mask = np.where((grabcut_mask == cv2.GC_FGD) | (grabcut_mask == cv2.GC_PR_FGD), 255, 0).astype(np.uint8)
+            
+            # 원본 크기로 복원
+            if max(h, w) > max_size:
+                refined_mask = cv2.resize(refined_mask, (w, h))
+            
+            # 결과가 너무 작으면 원본 마스크 반환
+            if np.sum(refined_mask) < np.sum(initial_mask) * 0.3:
+                print("GrabCut 결과가 너무 작아 원본 마스크를 사용합니다.")
+                return initial_mask
+            
+            print("GrabCut 시계 마스크 개선 완료")
+            return refined_mask
+            
+        except Exception as e:
+            print(f"GrabCut 처리 중 오류 발생: {e}")
+            return initial_mask
+    
+    def _get_bounding_rect_from_mask(self, mask):
+        """마스크에서 바운딩 박스를 추출합니다."""
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if contours:
+            largest_contour = max(contours, key=cv2.contourArea)
+            x, y, w, h = cv2.boundingRect(largest_contour)
+            
+            # 바운딩 박스를 약간 확장
+            margin = 10
+            x = max(0, x - margin)
+            y = max(0, y - margin)
+            w = min(mask.shape[1] - x, w + 2 * margin)
+            h = min(mask.shape[0] - y, h + 2 * margin)
+            
+            return (x, y, w, h)
+        return None
+    
+    def _apply_grabcut_to_hand(self, image, initial_hand_mask):
+        """손 마스크에 GrabCut을 적용하여 더 정교한 손 영역을 추출합니다."""
+        try:
+            print("GrabCut 손 마스크 개선 시작...")
+            
+            # 이미지 크기가 너무 크면 리사이즈
+            max_size = 800
+            h, w = image.shape[:2]
+            if max(h, w) > max_size:
+                scale = max_size / max(h, w)
+                new_h, new_w = int(h * scale), int(w * scale)
+                resized_image = cv2.resize(image, (new_w, new_h))
+                resized_mask = cv2.resize(initial_hand_mask, (new_w, new_h))
+                print(f"손 이미지 리사이즈: {w}x{h} -> {new_w}x{new_h}")
+            else:
+                resized_image = image
+                resized_mask = initial_hand_mask
+            
+            # 초기 마스크를 GrabCut 형식으로 변환
+            grabcut_mask = np.zeros(resized_image.shape[:2], dtype=np.uint8)
+            
+            # 초기 손 마스크에서 확실한 전경 설정
+            grabcut_mask[resized_mask > 0] = cv2.GC_PR_FGD
+            
+            # 손 마스크 경계 주변을 확실한 전경으로 설정
+            kernel = np.ones((5, 5), np.uint8)
+            dilated_mask = cv2.dilate(resized_mask, kernel, iterations=3)
+            eroded_mask = cv2.erode(resized_mask, kernel, iterations=3)
+            
+            # 확실한 전경 (eroded 영역)
+            grabcut_mask[eroded_mask > 0] = cv2.GC_FGD
+            
+            # 확실한 배경 (dilated 영역 밖)
+            grabcut_mask[dilated_mask == 0] = cv2.GC_BGD
+            
+            # 배경 모델과 전경 모델 초기화
+            bgd_model = np.zeros((1, 65), dtype=np.float64)
+            fgd_model = np.zeros((1, 65), dtype=np.float64)
+            
+            print("손 GrabCut 실행 중...")
+            # GrabCut 실행 (반복 횟수 줄임, 타임아웃 적용)
+            start_time = time.time()
+            rect = self._get_bounding_rect_from_mask(resized_mask)
+            
+            try:
+                if rect is not None:
+                    cv2.grabCut(resized_image, grabcut_mask, rect, bgd_model, fgd_model, iterCount=5, mode=cv2.GC_INIT_WITH_RECT)
+                else:
+                    cv2.grabCut(resized_image, grabcut_mask, (0, 0, resized_image.shape[1], resized_image.shape[0]), bgd_model, fgd_model, iterCount=5, mode=cv2.GC_INIT_WITH_MASK)
+                
+                elapsed_time = time.time() - start_time
+                print(f"손 GrabCut 실행 시간: {elapsed_time:.2f}초")
+                
+            except Exception as e:
+                print(f"손 GrabCut 실행 중 오류: {e}")
+                return initial_hand_mask
+            
+            print("손 GrabCut 완료, 결과 마스크 생성 중...")
+            # 결과 마스크 생성
+            refined_mask = np.where((grabcut_mask == cv2.GC_FGD) | (grabcut_mask == cv2.GC_PR_FGD), 255, 0).astype(np.uint8)
+            
+            # 원본 크기로 복원
+            if max(h, w) > max_size:
+                refined_mask = cv2.resize(refined_mask, (w, h))
+            
+            # 결과가 너무 작으면 원본 마스크 반환
+            if np.sum(refined_mask) < np.sum(initial_hand_mask) * 0.5:
+                print("손 GrabCut 결과가 너무 작아 원본 마스크를 사용합니다.")
+                return initial_hand_mask
+            
+            # 손 마스크 후처리 (노이즈 제거)
+            kernel = np.ones((3, 3), np.uint8)
+            refined_mask = cv2.morphologyEx(refined_mask, cv2.MORPH_CLOSE, kernel, iterations=1)
+            refined_mask = cv2.morphologyEx(refined_mask, cv2.MORPH_OPEN, kernel, iterations=1)
+            
+            print("GrabCut 손 마스크 개선 완료")
+            return refined_mask
+            
+        except Exception as e:
+            print(f"손 GrabCut 처리 중 오류 발생: {e}")
+            return initial_hand_mask
+    
     def _is_incomplete_watch_mask(self, mask):
         """간단한 마스크 완전성 검사"""
         if np.sum(mask) == 0:
