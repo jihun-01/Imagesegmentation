@@ -13,6 +13,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { getCartItems, updateCartItem, removeFromCart } from '../../utils/api';
 import { useImageResize } from '../Hooks/useImageResize';
 import { formatPrice } from '../../utils/formatUtils';
+import LightAlert from '../Common/LightAlert/LightAlert';
+import useQuantity from '../Hooks/useQuantity';
+import ConfirmModal from '../Common/ConfirmModal';
 import useFadeAlert from '../Hooks/useFadeAlert';
 import FadeAlert from '../Common/FadeAlert/FadeAlert';
 
@@ -21,6 +24,7 @@ import FadeAlert from '../Common/FadeAlert/FadeAlert';
  */
 const CartItem = ({ item, onQuantityChange, onRemove, isUpdating }) => {
   const { resizedImageUrl, isLoading: imageLoading } = useImageResize(item.product.image_url);
+  const { quantity, increase, decrease, set } = useQuantity(item.quantity, 1, 99);
 
   return (
     <div className="bg-white rounded-lg p-4 shadow-sm">
@@ -73,8 +77,8 @@ const CartItem = ({ item, onQuantityChange, onRemove, isUpdating }) => {
           <div className="flex items-center justify-between mt-3">
             <div className="flex items-center space-x-2">
               <button
-                onClick={() => onQuantityChange(item.id, item.quantity - 1)}
-                disabled={item.quantity <= 1 || isUpdating}
+                onClick={() => { decrease(); onQuantityChange(item.id, quantity - 1); }}
+                disabled={quantity <= 1 || isUpdating}
                 className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -83,11 +87,11 @@ const CartItem = ({ item, onQuantityChange, onRemove, isUpdating }) => {
               </button>
               
               <span className="w-8 text-center font-medium">
-                {isUpdating ? '...' : item.quantity}
+                {isUpdating ? '...' : quantity}
               </span>
               
               <button
-                onClick={() => onQuantityChange(item.id, item.quantity + 1)}
+                onClick={() => { increase(); onQuantityChange(item.id, quantity + 1); }}
                 disabled={isUpdating}
                 className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -118,6 +122,7 @@ const Cart = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [updating, setUpdating] = useState({});
+  const [confirmModal, setConfirmModal] = useState({ show: false, itemId: null });
   const { showFadeAlert, alertMessage, alertType, showAlert } = useFadeAlert();
 
   // 컴포넌트 마운트 시 장바구니 데이터 로드
@@ -177,16 +182,20 @@ const Cart = () => {
    * 상품 삭제 처리
    * @param {number} itemId - 삭제할 아이템 ID
    */
-  const handleRemoveItem = async (itemId) => {
-    if (!window.confirm('이 상품을 장바구니에서 제거하시겠습니까?')) {
-      return;
-    }
-    
+  const handleRemoveFromCart = (itemId) => {
+    setConfirmModal({ show: true, itemId });
+  };
+
+  const handleConfirmRemove = async () => {
+    const { itemId } = confirmModal;
+    setConfirmModal({ show: false, itemId: null });
     try {
+      setUpdating(prev => ({ ...prev, [itemId]: 'removing' }));
       await removeFromCart(itemId);
       setCartItems(prevItems => prevItems.filter(item => item.id !== itemId));
+      showFadeAlert('장바구니에서 삭제되었습니다.', 'success');
     } catch (error) {
-      setError('상품 삭제에 실패했습니다.');
+      showFadeAlert('상품 삭제에 실패했습니다.', 'error');
     } finally {
       setUpdating(prev => ({ ...prev, [itemId]: false }));
     }
@@ -275,7 +284,7 @@ const Cart = () => {
                   key={item.id}
                   item={item}
                   onQuantityChange={handleQuantityChange}
-                  onRemove={handleRemoveItem}
+                  onRemove={handleRemoveFromCart}
                   isUpdating={updating[item.id]}
                 />
               ))
@@ -302,7 +311,18 @@ const Cart = () => {
             </div>
           </div>
         )}
-        <FadeAlert message={alertMessage} type={alertType} show={showAlert} />
+        <FadeAlert
+          show={showAlert}
+          message={alertMessage}
+          type={alertType}
+          position="top"
+        />
+        <ConfirmModal
+          show={confirmModal.show}
+          message="이 상품을 장바구니에서 제거하시겠습니까?"
+          onConfirm={handleConfirmRemove}
+          onCancel={() => setConfirmModal({ show: false, itemId: null })}
+        />
       </div>
     </div>
   );

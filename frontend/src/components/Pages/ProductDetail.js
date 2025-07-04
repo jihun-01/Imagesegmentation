@@ -10,6 +10,7 @@ import backicon from '../Assets/icons/backicon.png';
 import { Link } from 'react-router-dom';
 import useFadeAlert from '../Hooks/useFadeAlert';
 import FadeAlert from '../Common/FadeAlert/FadeAlert';
+import useQuantity from '../Hooks/useQuantity';
 
 // 별점 컴포넌트
 const StarRating = ({ rating }) => (
@@ -26,7 +27,7 @@ const ProductDetail = () => {
   const { isLoggedIn } = useAuth();
   const { alertMessage, alertType, showAlert, showFadeAlert } = useFadeAlert();
   
-  const [quantity, setQuantity] = useState(1);
+  const { quantity, increase, decrease, set } = useQuantity(1, 1, 99);
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -78,9 +79,6 @@ const ProductDetail = () => {
 
     checkWishlistStatus();
   }, [isLoggedIn, id]);
-
-  const handleMinus = () => setQuantity(q => Math.max(1, q - 1));
-  const handlePlus = () => setQuantity(q => q + 1);
 
   // 가상 착용 페이지로 이동하는 함수
   const handleVirtualTryOn = () => {
@@ -212,9 +210,9 @@ const ProductDetail = () => {
             <div className="text-2xl font-bold text-gray-900">{formatPrice(item.price)}</div>
             {/* 수량 조절 */}
             <span className="flex items-center">
-              <button onClick={handlePlus} className="bg-gray-100 rounded-lg px-2 py-1 mx-1 text-xl font-bold">+</button>
+              <button onClick={increase} className="bg-gray-100 rounded-lg px-2 py-1 mx-1 text-xl font-bold">+</button>
               <span className="mx-2 text-lg font-mono">{String(quantity).padStart(2, '0')}</span>
-              <button onClick={handleMinus} className="bg-gray-100 rounded-lg px-2 py-1 mx-1 text-xl font-bold">-</button>
+              <button onClick={decrease} className="bg-gray-100 rounded-lg px-2 py-1 mx-1 text-xl font-bold">-</button>
             </span>
           </div>
           

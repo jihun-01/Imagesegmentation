@@ -15,13 +15,19 @@ import ProductCard from '../Productcard/ProductCard';
  * @param {number} containerHeight - 컨테이너 높이 (px)
  * @param {number} columns - 그리드 열 수
  * @param {number} gap - 아이템 간 간격 (px)
+ * @param {Array} wishlistIds - 위시리스트 ID 배열
+ * @param {Function} onWishlistChange - 위시리스트 변경 함수
+ * @param {Function} onCartChange - 장바구니 변경 함수
  */
 const VirtualGrid = ({ 
   items = [], 
   itemHeight = 288,                // ProductCard 높이 (h-72 = 18rem = 288px)
   containerHeight = 600,
   columns = 2,
-  gap = 16
+  gap = 16,
+  wishlistIds = [],
+  onWishlistChange,
+  onCartChange
 }) => {
   // 상태 관리
   const [scrollTop, setScrollTop] = useState(0);                           // 현재 스크롤 위치
@@ -166,6 +172,9 @@ const VirtualGrid = ({
                 price={item.price}
                 id={item.id}
                 isVisible={item.isVisible}
+                wishlistIds={wishlistIds}
+                onWishlistChange={onWishlistChange}
+                onCartChange={onCartChange}
               />
             </div>
           ))}

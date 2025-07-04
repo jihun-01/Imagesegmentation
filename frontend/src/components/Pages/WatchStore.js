@@ -321,6 +321,9 @@ function WatchStore() {
                 containerHeight={containerHeight}
                 columns={2}
                 gap={16}
+                wishlistIds={wishlistIds}
+                onWishlistChange={handleWishlistChange}
+                onCartChange={handleCartChange}
               />
             ) : (
               <div className="text-center py-8 text-gray-500">

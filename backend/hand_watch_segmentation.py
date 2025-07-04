@@ -386,8 +386,8 @@ class HandWatchSegmentation:
             
             print(f"감지된 시계 기울기: {angle:.1f}도")
             
-            # 각도가 10도 이상일 때만 조정 (성능 최적화)
-            if abs(angle) > 10:
+            # 각도가 20도 이상일 때만 조정 (성능 최적화)
+            if abs(angle) > 20:
                 print(f"시계 각도 조정: {angle:.1f}도 회전")
                 
                 # 이미지 중심점 계산

@@ -16,7 +16,7 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Suspense fallback={<div>Loading...</div>}><WatchStore /></Suspense>} />
+          <Route path="/" element={<Suspense fallback={<div className="animate-spin flex justify-center items-center h-screen">페이지 불러오는중...</div>}><WatchStore /></Suspense>} />
           <Route path="/watch-store" element={<WatchStore />} />
           <Route path="/product/:id" element={<ProductDetail />} />
           <Route path="/virtual-wear" element={<VirtualWear />} />

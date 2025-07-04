@@ -12,6 +12,10 @@ import { useAuth } from '../../contexts/AuthContext';
 import { getWishlistItems, removeFromWishlist, addToCart } from '../../utils/api';
 import { useImageResize } from '../Hooks/useImageResize';
 import { formatPrice } from '../../utils/formatUtils';
+import LightAlert from '../Common/LightAlert/LightAlert';
+import ConfirmModal from '../Common/ConfirmModal';
+import useFadeAlert from '../Hooks/useFadeAlert';
+import FadeAlert from '../Common/FadeAlert/FadeAlert';
 
 /**
  * 찜목록 개별 아이템 컴포넌트 (이미지 리사이징 적용)
@@ -91,6 +95,8 @@ const Wishlist = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [processing, setProcessing] = useState({});
+  const [confirmModal, setConfirmModal] = useState({ show: false, productId: null, itemId: null });
+  const { showFadeAlert, alertMessage, alertType, showAlert } = useFadeAlert();
 
   // 컴포넌트 마운트 시 찜목록 데이터 로드
   useEffect(() => {
@@ -122,18 +128,20 @@ const Wishlist = () => {
    * @param {number} productId - 상품 ID
    * @param {number} itemId - 찜목록 아이템 ID (UI 상태 관리용)
    */
-  const handleRemoveFromWishlist = async (productId, itemId) => {
-    if (!window.confirm('이 상품을 찜목록에서 제거하시겠습니까?')) {
-      return;
-    }
-    
+  const handleRemoveFromWishlist = (productId, itemId) => {
+    setConfirmModal({ show: true, productId, itemId });
+  };
+
+  const handleConfirmRemove = async () => {
+    const { productId, itemId } = confirmModal;
+    setConfirmModal({ show: false, productId: null, itemId: null });
     try {
       setProcessing(prev => ({ ...prev, [itemId]: 'removing' }));
-      
       await removeFromWishlist(productId);
       setWishlistItems(prevItems => prevItems.filter(item => item.id !== itemId));
+      showFadeAlert('찜목록에서 제거되었습니다.', 'success');
     } catch (error) {
-      setError('찜 해제에 실패했습니다.');
+      showFadeAlert('찜 해제에 실패했습니다.', 'error');
     } finally {
       setProcessing(prev => ({ ...prev, [itemId]: false }));
     }
@@ -147,14 +155,13 @@ const Wishlist = () => {
   const handleAddToCart = async (product, itemId) => {
     try {
       setProcessing(prev => ({ ...prev, [itemId]: 'adding' }));
-      
       await addToCart(product.id, 1);
-      alert('장바구니에 추가되었습니다!');
+      showFadeAlert('장바구니에 추가되었습니다!', 'success');
     } catch (error) {
       if (error.message.includes('이미 장바구니에 있는 상품입니다')) {
-        alert('이미 장바구니에 있는 상품입니다.');
+        showFadeAlert('이미 장바구니에 있는 상품입니다.', 'info');
       } else {
-        setError('장바구니 추가에 실패했습니다.');
+        showFadeAlert('장바구니 추가에 실패했습니다.', 'error');
       }
     } finally {
       setProcessing(prev => ({ ...prev, [itemId]: false }));
@@ -283,6 +290,18 @@ const Wishlist = () => {
           </div>
         )}
       </div>
+      <FadeAlert
+        show={showAlert}
+        message={alertMessage}
+        type={alertType}
+        position="top"
+      />
+      <ConfirmModal
+        show={confirmModal.show}
+        message="이 상품을 찜목록에서 제거하시겠습니까?"
+        onConfirm={handleConfirmRemove}
+        onCancel={() => setConfirmModal({ show: false, productId: null, itemId: null })}
+      />
     </div>
   );
 };
