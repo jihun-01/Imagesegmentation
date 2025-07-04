@@ -6,10 +6,11 @@
  * - 반응형 디자인 및 모바일 최적화
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import VirtualGrid from '../Common/VirtualGrid/VirtualGrid';
 import { useAuth } from '../../contexts/AuthContext';
 import { getProducts } from '../../utils/api';
+import { getWishlistItems, getCartItems } from '../../utils/api';
 import popicon from '../Assets/icons/popicon.png';
 import homeicon from '../Assets/icons/homeicon.png';
 import menuicon from '../Assets/icons/listicon.png';
@@ -18,6 +19,8 @@ import usericon from '../Assets/icons/usericon.png';
 import searchicon from '../Assets/icons/searchicon.png';
 import carticon from '../Assets/icons/shppingcarticon.png';
 import { Link } from 'react-router-dom';
+import useFadeAlert from '../Hooks/useFadeAlert';
+import FadeAlert from '../Common/FadeAlert/FadeAlert';  
 
 function WatchStore() {
   // 인증 상태 관리
@@ -25,24 +28,31 @@ function WatchStore() {
   
   // 상품 및 UI 상태 관리
   const [products, setProducts] = useState([]);                            // 전체 상품 목록 (DB에서 가져온 데이터)
-  const [filteredProducts, setFilteredProducts] = useState([]);            // 필터링된 상품 목록
   const [selectedCategory, setSelectedCategory] = useState('인기');        // 선택된 카테고리
   const [availableCategories, setAvailableCategories] = useState([]);      // 실제 DB에서 가져온 카테고리 목록
   const [searchQuery, setSearchQuery] = useState('');                      // 검색어
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');    // 디바운스된 검색어
   const [showSearchInput, setShowSearchInput] = useState(false);           // 검색창 표시 여부
   const [containerHeight, setContainerHeight] = useState(400);             // 가상 그리드 컨테이너 높이
   const [loading, setLoading] = useState(true);                            // 로딩 상태
   const [error, setError] = useState('');                                  // 에러 메시지
+  const { alertMessage, alertType, showAlert, showFadeAlert } = useFadeAlert(); // 페이지 상단 알림 관리
+
+  // 찜목록 개수 상태
+  const [wishlistCount, setWishlistCount] = useState(0);
+  // 찜목록 id 배열 상태
+  const [wishlistIds, setWishlistIds] = useState([]);
+  // 장바구니 개수 상태
+  const [cartCount, setCartCount] = useState(0);
 
   /**
-   * DB에서 상품 데이터 로드
+   * DB에서 상품 데이터 로드 (useCallback으로 메모이제이션)
    */
-  const loadProducts = async () => {
+  const loadProducts = useCallback(async () => {
     try {
       setLoading(true);
       const data = await getProducts();
       setProducts(data);
-      setFilteredProducts(data);
       
       // 상품 데이터에서 고유한 타입들 추출
       const uniqueTypes = [...new Set(data.map(product => product.type))].filter(Boolean);
@@ -50,40 +60,51 @@ function WatchStore() {
       const categories = ['인기', ...uniqueTypes.sort()];
       setAvailableCategories(categories);
       
-
     } catch (error) {
       console.error('상품 로드 실패:', error);
       setError('상품을 불러오는데 실패했습니다.');
     } finally {
       setLoading(false);
     }
-  };
+  }, []); // 의존성 없음 - 한 번만 실행
 
   /**
-   * 인기도 점수 계산 함수
+   * 인기도 점수 계산 함수 (메모이제이션)
    * 가격을 기준으로 임시 계산 (DB에 sales, rating 등이 없으므로)
-   * @param {Object} item - 상품 객체
-   * @returns {number} 인기도 점수
    */
-  const calculatePopularity = (item) => {
+  const calculatePopularity = useCallback((item) => {
     // 임시로 ID 역순으로 정렬 (최신순)
     return 1000 - item.id;
-  };
+  }, []);
 
   /**
-   * 상품 필터링 및 정렬 처리
-   * - 검색어 기반 필터링 (상품명, 카테고리)
+   * 검색어 디바운싱 (300ms 지연)
+   */
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  /**
+   * 상품 필터링 및 정렬 처리 (useMemo로 최적화)
+   * - 디바운스된 검색어 기반 필터링 (상품명, 카테고리)
    * - 카테고리별 필터링
    * - 인기순 정렬
    */
-  const filterAndSortProducts = () => {
+  const filteredProducts = useMemo(() => {
+    if (!products.length) return [];
+    
     let filtered = [...products];
 
-    // 검색어가 있는 경우 상품명과 카테고리에서 검색
-    if (searchQuery.trim()) {
+    // 디바운스된 검색어가 있는 경우 상품명과 카테고리에서 검색
+    if (debouncedSearchQuery.trim()) {
+      const query = debouncedSearchQuery.toLowerCase();
       filtered = filtered.filter(item =>
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (item.type && item.type.toLowerCase().includes(searchQuery.toLowerCase()))
+        item.name.toLowerCase().includes(query) ||
+        (item.type && item.type.toLowerCase().includes(query))
       );
     }
 
@@ -98,35 +119,33 @@ function WatchStore() {
       });
     }
 
-    setFilteredProducts(filtered);
-  };
+    return filtered;
+  }, [products, debouncedSearchQuery, selectedCategory, calculatePopularity]);
 
   /**
-   * 카테고리 변경 이벤트 핸들러
-   * @param {string} category - 선택된 카테고리명
+   * 카테고리 변경 이벤트 핸들러 (useCallback으로 최적화)
    */
-  const handleCategoryChange = (category) => {
+  const handleCategoryChange = useCallback((category) => {
     setSelectedCategory(category);
-  };
+  }, []);
 
   /**
-   * 검색어 입력 이벤트 핸들러
-   * @param {Event} e - 입력 이벤트 객체
+   * 검색어 입력 이벤트 핸들러 (useCallback으로 최적화)
    */
-  const handleSearchChange = (e) => {
+  const handleSearchChange = useCallback((e) => {
     setSearchQuery(e.target.value);
-  };
+  }, []);
 
   /**
-   * 검색 아이콘 클릭 이벤트 핸들러
+   * 검색 아이콘 클릭 이벤트 핸들러 (useCallback으로 최적화)
    * 검색창 토글 및 검색어 초기화
    */
-  const handleSearchIconClick = () => {
-    setShowSearchInput(!showSearchInput);
+  const handleSearchIconClick = useCallback(() => {
+    setShowSearchInput(prev => !prev);
     if (showSearchInput && searchQuery) {
       setSearchQuery('');                    // 검색창 닫을 때 검색어 초기화
     }
-  };
+  }, [showSearchInput, searchQuery]);
 
   /**
    * 컴포넌트 마운트 시 상품 데이터 로드
@@ -135,51 +154,81 @@ function WatchStore() {
     loadProducts();
   }, []);
 
-  /**
-   * 상품 필터링 실행 (카테고리나 검색어 변경 시)
-   */
+  // 최초 1회만 찜목록/장바구니 개수 불러오기
   useEffect(() => {
-    if (products.length > 0) {
-      filterAndSortProducts();
+    const fetchWishlistCount = async () => {
+      try {
+        const items = await getWishlistItems();
+        setWishlistCount(items.length);
+        setWishlistIds(items.map(item => item.product.id));
+      } catch (e) {
+        setWishlistCount(0);
+        setWishlistIds([]);
+      }
+    };
+    const fetchCartCount = async () => {
+      try {
+        const items = await getCartItems();
+        setCartCount(items.length);
+      } catch (e) {
+        setCartCount(0);
+      }
+    };
+    fetchWishlistCount();
+    fetchCartCount();
+  }, []);
+
+  // 찜목록 갱신 콜백
+  const handleWishlistChange = async () => {
+    try {
+      const items = await getWishlistItems();
+      setWishlistCount(items.length);
+      setWishlistIds(items.map(item => item.product.id));
+    } catch (e) {
+      setWishlistCount(0);
+      setWishlistIds([]);
     }
-  }, [selectedCategory, searchQuery, products]);
+  };
+
+  // 장바구니 갱신 콜백 (필요시)
+  const handleCartChange = async () => {
+    try {
+      const items = await getCartItems();
+      setCartCount(items.length);
+    } catch (e) {
+      setCartCount(0);
+    }
+  };
+
+
 
   /**
-   * 가상 그리드 컨테이너 높이 동적 계산
+   * 가상 그리드 컨테이너 높이 동적 계산 (useCallback으로 최적화)
    * 화면 크기에 맞춰 반응형으로 높이 조절
    */
-  useEffect(() => {
-    const calculateHeight = () => {
-      const windowHeight = window.innerHeight;
-      const headerHeight = 120;              // 상단 헤더 영역 높이
-      const footerHeight = 80;               // 하단 네비게이션 높이
-      const availableHeight = windowHeight - headerHeight - footerHeight;
-      setContainerHeight(Math.max(300, availableHeight));    // 최소 300px 보장
-    };
+  const calculateHeight = useCallback(() => {
+    const windowHeight = window.innerHeight;
+    const headerHeight = 120;              // 상단 헤더 영역 높이
+    const footerHeight = 80;               // 하단 네비게이션 높이
+    const availableHeight = windowHeight - headerHeight - footerHeight;
+    setContainerHeight(Math.max(300, availableHeight));    // 최소 300px 보장
+  }, []);
 
+  useEffect(() => {
     calculateHeight();
     window.addEventListener('resize', calculateHeight);
     
     return () => window.removeEventListener('resize', calculateHeight);
-  }, []);
+  }, [calculateHeight]);
 
   /**
-   * 카테고리 버튼의 동적 스타일 반환
-   * @param {string} category - 버튼의 카테고리명
-   * @returns {string} 적용할 CSS 클래스 문자열
+   * 카테고리 버튼의 동적 스타일 반환 (useCallback으로 최적화)
    */
-  const getCategoryButtonStyle = (category) => {
+  const getCategoryButtonStyle = useCallback((category) => {
     return selectedCategory === category
       ? "bg-black text-white rounded-xl px-3 py-1 font-bold text-sm whitespace-nowrap"      // 선택된 상태
       : "bg-gray-100 text-gray-500 rounded-xl px-3 py-1 text-sm whitespace-nowrap";         // 기본 상태
-  };
-
-  /**
-   * 준비중 기능 알림 (임시 핸들러)
-   */
-  const notready = () => {
-    alert('준비중입니다.');
-  };
+  }, [selectedCategory]);
 
   /**
    * 시계 쇼핑몰 메인 UI 렌더링
@@ -187,7 +236,7 @@ function WatchStore() {
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col items-center py-4">
       {/* 메인 컨테이너 - 모바일 최적화된 카드 형태 */}
-      <div className="w-full max-w-md min-h-[calc(100vh-56px)] bg-white rounded-2xl shadow-lg p-4 mb-4">
+      <div className="w-full max-w-md h-[calc(100vh-2rem)] bg-white rounded-2xl shadow-lg p-4 flex flex-col overflow-hidden">
         
         {/* 상단 헤더: 검색/로고/액션 버튼들 */}
         <div className="flex justify-between items-center mb-2">
@@ -200,8 +249,13 @@ function WatchStore() {
           <div className="flex space-x-2">
             {/* 장바구니 버튼 */}
             <Link to="/cart">
-              <button className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
+              <button className="p-1 hover:bg-gray-100 rounded-lg transition-colors relative">
                 <img src={carticon} alt="carticon" className='w-6 h-6'/>
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 min-w-[18px] flex items-center justify-center border-2 border-white">
+                    {cartCount}
+                  </span>
+                )}
               </button>
             </Link>
           </div>
@@ -237,27 +291,28 @@ function WatchStore() {
           ))}
         </div>
 
-        {/* 에러 메시지 */}
-        {error && (
-          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
-            {error}
-          </div>
-        )}
+        <div className={`flex-1 h-0 overflow-y-auto`}>
+          {/* 에러 메시지 */}
+          {error && (
+            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+              {error}
+            </div>
+          )}
 
-        {/* 로딩 상태 */}
-        {loading ? (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-            <p className="text-gray-600">상품을 불러오는 중...</p>
-          </div>
-        ) : (
-          <>
-            {/* 검색 결과 요약 정보 */}
-            {searchQuery && (
-              <div className="mb-2 text-sm text-gray-600">
-                '{searchQuery}' 검색 결과: {filteredProducts.length}개
-              </div>
-            )}
+          {/* 로딩 상태 */}
+          {loading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+              <p className="text-gray-600">상품을 불러오는 중...</p>
+            </div>
+          ) : (
+            <>
+              {/* 검색 결과 요약 정보 */}
+              {debouncedSearchQuery && (
+                <div className="mb-2 text-sm text-gray-600">
+                  '{debouncedSearchQuery}' 검색 결과: {filteredProducts.length}개
+                </div>
+              )}
 
             {/* 메인 상품 그리드 - 가상화 적용으로 성능 최적화 */}
             {filteredProducts.length > 0 ? (
@@ -269,11 +324,12 @@ function WatchStore() {
               />
             ) : (
               <div className="text-center py-8 text-gray-500">
-                {searchQuery ? '검색 결과가 없습니다.' : '등록된 상품이 없습니다.'}
+                {debouncedSearchQuery ? '검색 결과가 없습니다.' : '등록된 상품이 없습니다.'}
               </div>
             )}
-          </>
-        )}
+            </>
+          )}
+        </div>
       </div>
 
       {/* 하단 고정 네비게이션 바 */}
@@ -287,7 +343,7 @@ function WatchStore() {
         </Link>
         
         {/* 카테고리 버튼 (준비중) */}
-        <button className='flex flex-col items-center' onClick={notready}>
+        <button className='flex flex-col items-center' onClick={() => showFadeAlert('준비중입니다.', 'error')}>
           <img src={menuicon} alt="menuicon" className='w-6 h-6'/>
           <span className="text-xs">카테고리</span>
         </button>
@@ -296,7 +352,7 @@ function WatchStore() {
         <Link to="/wishlist">
           <button className='flex flex-col items-center'>
             <img src={likeicon} alt="likeicon" className='w-6 h-6'/>
-            <span className="text-xs">찜하기</span>
+            <span className="text-xs">찜하기{wishlistCount > 0 ? ` (${wishlistCount})` : ''}</span>
           </button>
         </Link>
         
@@ -318,6 +374,7 @@ function WatchStore() {
           </Link>
         )}
       </div>
+      <FadeAlert message={alertMessage} type={alertType} show={showAlert} />
     </div>
   );
 }

@@ -3,6 +3,8 @@ import plusicon from '../Assets/icons/plusicon.png';
 import backicon from '../Assets/icons/backicon.png';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../../utils/config';
+import { formatPrice } from '../../utils/formatUtils';
+
 
 const VirtualWear = ({ onImageSelect }) => {
   const fileInputRef = useRef(null);
@@ -134,26 +136,35 @@ const VirtualWear = ({ onImageSelect }) => {
   };
 
   return (
-    <div className="max-w-md mx-auto flex flex-col min-h-[calc(100vh-56px)] bg-gray-100 px-4 py-8">
-      <div className="w-full h-full bg-white rounded-2xl shadow-lg p-10 flex flex-col items-center">
-        <Link to="/">
-          <button className="absolute top-4 left-4 bg-white rounded-xl p-2 shadow">
-            <img src={backicon} alt="backicon" className="w-6 h-6" />
+    <div className="min-h-screen bg-gray-900 flex flex-col items-center py-4">
+      <div className="w-full max-w-md min-h-[calc(100vh-56px)] bg-white rounded-2xl shadow-lg p-6 flex flex-col mb-4">
+        
+        {/* 헤더 */}
+        <div className="flex items-center justify-between mb-6">
+          <button 
+            onClick={() => navigate(-1)}
+            className="bg-gray-100 rounded-xl p-2 shadow hover:bg-gray-200 transition"
+          >
+            <img src={backicon} alt="뒤로가기" className="w-6 h-6" />
           </button>
-        </Link>
-
+          
+          <h1 className="text-xl font-bold text-gray-800">가상 착용</h1>
+          
+          <div className="w-10"></div> {/* 공간 맞추기용 */}
+        </div>
+          
         {/* 선택된 시계 정보 표시 */}
         {selectedWatch && (
-          <div className="w-full bg-blue-50 rounded-2xl p-4 mb-4 text-center">
-            <div className="flex items-center justify-center gap-4">
+          <div className="bg-blue-50 rounded-2xl p-4 mb-6">
+            <div className="flex items-center gap-4">
               <img 
                 src={selectedWatch.image} 
                 alt={selectedWatch.name} 
-                className="w-16 h-16 object-cover rounded-lg"
+                className="w-12 h-12 object-cover rounded-lg"
               />
               <div>
-                <p className="text-lg font-semibold text-gray-800 line-clamp-1">{selectedWatch.name}</p>
-                <p className="text-sm text-gray-600">선택된 시계</p>
+                <p className="font-semibold text-gray-800 line-clamp-1">{selectedWatch.name}</p>
+                <p className="text-sm text-gray-600">{formatPrice(selectedWatch.price)}</p>
               </div>
             </div>
           </div>
@@ -176,29 +187,35 @@ const VirtualWear = ({ onImageSelect }) => {
           </div>
         )}
 
-        {/* 안내 메시지 */}
-        <p className="text-black text-lg font-semibold mb-8 mt-2 text-center whitespace-break-spaces">
-          {isProcessing ? 'AI가 가상 착용을 처리하는 중...' : '시계를 착용해볼 손 사진을 업로드 해 주세요'}
-        </p>
-        
-        {/* 업로드 버튼 */}
-        <button
-          className={`bg-gray-100 rounded-2xl p-8 shadow-md transition flex flex-col items-center ${
-            isProcessing ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-200'
-          }`}
-          onClick={handleButtonClick}
-          type="button"
-          disabled={isProcessing}
-        >
-          {isProcessing ? (
-            <div className="w-96 h-96 flex flex-col items-center justify-center">
-              <div className="animate-spin rounded-full h-32 w-32 border-b-4 border-blue-600 mb-4"></div>
-              <p className="text-gray-600 text-center">AI 처리 중...</p>
+        {/* 이미지 업로드 영역 */}
+        <div className="flex-1 space-y-6">
+          <div className="text-center">
+            <h2 className="text-lg font-semibold mb-4 text-gray-800">
+              {isProcessing ? 'AI가 가상 착용을 처리하는 중...' : '손 사진 업로드'}
+            </h2>
+            <div className="bg-gray-50 rounded-2xl p-4">
+              <button
+                className={`w-full max-w-sm mx-auto bg-gray-100 rounded-2xl p-8 shadow-md transition flex flex-col items-center ${
+                  isProcessing ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-200'
+                }`}
+                onClick={handleButtonClick}
+                type="button"
+                disabled={isProcessing}
+              >
+                {isProcessing ? (
+                  <div className="w-full h-80 flex flex-col items-center justify-center">
+                    <div className="animate-spin rounded-full h-32 w-32 border-b-4 border-blue-600 mb-4"></div>
+                    <p className="text-gray-600 text-center">AI 처리 중...</p>
+                  </div>
+                ) : (
+                  <div className="w-full h-80 flex items-center justify-center">
+                    <img src={plusicon} alt="이미지 업로드" className="w-32 h-32 object-contain" />
+                  </div>
+                )}
+              </button>
             </div>
-          ) : (
-            <img src={plusicon} alt="이미지 업로드" className="w-96 h-96 object-contain" />
-          )}
-        </button>
+          </div>
+        </div>
         
         {/* 숨겨진 파일 입력 */}
         <input
@@ -210,21 +227,22 @@ const VirtualWear = ({ onImageSelect }) => {
           disabled={isProcessing}
         />
         
-        {/* 선택된 파일 표시 */}
-        {selectedFile && !isProcessing && (
-          <div className="text-black mt-4 text-center">
-            선택된 파일: {selectedFile.name}
-          </div>
-        )}
-        
         {/* 안내 텍스트 */}
-        <span className="text-sm text-black mt-6 ">
-          {isProcessing ? 'AI가 가상 착용을 처리하고 있습니다...' : '업로드 버튼을 눌러 시계를 착용해볼 손 사진을 업로드 해 주세요'}
-        </span>
-        
-        <span className="text-xs text-gray-500 mt-2">
-          지원 형식: JPG, PNG (최대 10MB)
-        </span>
+        <div className="mt-6 text-center space-y-2">
+          {selectedFile && !isProcessing && (
+            <p className="text-sm text-gray-700">
+              선택된 파일: {selectedFile.name}
+            </p>
+          )}
+          
+          <p className="text-sm text-gray-600">
+            {isProcessing ? 'AI가 가상 착용을 처리하고 있습니다...' : '업로드 버튼을 눌러 시계를 착용해볼 손 사진을 업로드 해 주세요'}
+          </p>
+          
+          <p className="text-xs text-gray-500">
+            지원 형식: JPG, PNG (최대 10MB)
+          </p>
+        </div>
       </div>
     </div>
   );

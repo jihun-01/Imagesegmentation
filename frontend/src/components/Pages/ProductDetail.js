@@ -156,11 +156,13 @@ const ProductDetail = () => {
   // 로딩 상태
   if (loading) {
     return (
-      <div className="max-w-md mx-auto bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col min-h-screen">
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-            <p className="text-gray-600">상품 정보를 불러오는 중...</p>
+      <div className="min-h-screen bg-gray-900 flex flex-col items-center py-4">
+        <div className="w-full max-w-md min-h-[calc(100vh-2rem)] bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col relative">
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+              <p className="text-gray-600">상품 정보를 불러오는 중...</p>
+            </div>
           </div>
         </div>
       </div>
@@ -170,60 +172,64 @@ const ProductDetail = () => {
   // 에러 상태
   if (error || !item) {
     return (
-      <div className="max-w-md mx-auto bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col min-h-screen">
-        <div className="p-8 text-center text-gray-500">
-          <p>{error || '존재하지 않는 상품입니다.'}</p>
-          <Link to="/" className="mt-4 inline-block bg-gray-900 text-white px-6 py-2 rounded-lg">
-            홈으로 돌아가기
-          </Link>
+      <div className="min-h-screen bg-gray-900 flex flex-col items-center py-4">
+        <div className="w-full max-w-md min-h-[calc(100vh-2rem)] bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col relative">
+          <div className="p-8 text-center text-gray-500">
+            <p>{error || '존재하지 않는 상품입니다.'}</p>
+            <Link to="/" className="mt-4 inline-block bg-gray-900 text-white px-6 py-2 rounded-lg">
+              홈으로 돌아가기
+            </Link>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-md mx-auto bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col min-h-screen">
-      {/* 상단 이미지 - 원본 이미지 직접 사용 */}
-      <div className="relative bg-white">
-        <img 
-          src={item.image_url} 
-          alt={item.name} 
-          className="w-3/4 h-[400px] mx-28 object-cover rounded-b-3xl" 
-          loading="lazy"
-        />
-        <Link to="/">
-          <button className="absolute top-4 left-4 bg-white rounded-xl p-2 shadow">
-            <img src={backicon} alt="backicon" className="w-6 h-6" />
-          </button>
-        </Link>
-      </div>
-      
-      {/* 상세 정보 */}
-      <div className="p-6 flex-1 flex flex-col gap-2">
-        <h2 className="text-2xl font-semibold text-gray-900">{item.name}</h2>
-        
-        {/* 가격 */}
-        <div className="flex items-center justify-between mb-2">    
-          <div className="text-2xl font-bold text-gray-900">{formatPrice(item.price)}</div>
-          {/* 수량 조절 */}
-          <span className="flex items-center">
-            <button onClick={handlePlus} className="bg-gray-100 rounded-lg px-2 py-1 mx-1 text-xl font-bold">+</button>
-            <span className="mx-2 text-lg font-mono">{String(quantity).padStart(2, '0')}</span>
-            <button onClick={handleMinus} className="bg-gray-100 rounded-lg px-2 py-1 mx-1 text-xl font-bold">-</button>
-          </span>
+    <div className="min-h-screen bg-gray-900 flex flex-col items-center py-4">
+      <div className="w-full max-w-md flex-1 bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col">
+        {/* 상단 이미지 - 원본 이미지 직접 사용 */}
+        <div className="relative bg-white">
+          <img 
+            src={item.image_url} 
+            alt={item.name} 
+            className="w-3/4 h-[400px] mx-28 object-cover rounded-b-3xl" 
+            loading="lazy"
+          />
+          <Link to="/">
+            <button className="absolute top-4 left-4 bg-white rounded-xl p-2 shadow">
+              <img src={backicon} alt="backicon" className="w-6 h-6" />
+            </button>
+          </Link>
         </div>
         
-        {/* 별점 및 리뷰 */}
-        <div className="flex items-center mb-2">
-          <StarRating rating={item.rating || 0} />
-          <span className="text-gray-400 ml-1">({item.reviews || 0} reviews)</span>
+        {/* 상세 정보 */}
+        <div className="flex-1 p-6 pb-4 overflow-y-auto flex flex-col gap-2">
+          <h2 className="text-2xl font-semibold text-gray-900">{item.name}</h2>
+          
+          {/* 가격 */}
+          <div className="flex items-center justify-between mb-2">    
+            <div className="text-2xl font-bold text-gray-900">{formatPrice(item.price)}</div>
+            {/* 수량 조절 */}
+            <span className="flex items-center">
+              <button onClick={handlePlus} className="bg-gray-100 rounded-lg px-2 py-1 mx-1 text-xl font-bold">+</button>
+              <span className="mx-2 text-lg font-mono">{String(quantity).padStart(2, '0')}</span>
+              <button onClick={handleMinus} className="bg-gray-100 rounded-lg px-2 py-1 mx-1 text-xl font-bold">-</button>
+            </span>
+          </div>
+          
+          {/* 별점 및 리뷰 */}
+          <div className="flex items-center mb-2">
+            <StarRating rating={item.rating || 0} />
+            <span className="text-gray-400 ml-1">({item.reviews || 0} reviews)</span>
+          </div>
+          
+          {/* 설명 */}
+          <p className="text-gray-500 text-sm mb-6">{item.description}</p>
         </div>
         
-        {/* 설명 */}
-        <p className="text-gray-500 text-sm mb-6">{item.description}</p>
-        
-        {/* 하단 버튼 */}
-        <div className="fixed bottom-8 w-96 flex items-center gap-3 mt-auto">
+        {/* 하단 고정 버튼 */}
+        <div className="fixed bottom-0 max-w-md w-full bg-white border-t border-gray-100 p-4 flex gap-3 rounded-b-2xl mt-auto">
           <button 
             onClick={handleWishlist}
             disabled={isTogglingWish}
@@ -266,15 +272,15 @@ const ProductDetail = () => {
             )}
           </button>
         </div>
+        
+        {/* 페이드 알림 */}
+        <FadeAlert 
+          show={showAlert}
+          message={alertMessage}
+          type={alertType}
+          position="bottom"
+        />
       </div>
-      
-      {/* 페이드 알림 */}
-      <FadeAlert 
-        show={showAlert}
-        message={alertMessage}
-        type={alertType}
-        position="bottom"
-      />
     </div>
   );
 };

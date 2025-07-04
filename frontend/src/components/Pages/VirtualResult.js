@@ -4,6 +4,7 @@ import backicon from '../Assets/icons/backicon.png';
 import { addToCart } from '../../utils/api';
 import useFadeAlert from '../Hooks/useFadeAlert';
 import FadeAlert from '../Common/FadeAlert/FadeAlert';
+import { formatPrice } from '../../utils/formatUtils';
 
 const VirtualResult = () => {
   const location = useLocation();
@@ -26,10 +27,10 @@ const VirtualResult = () => {
       await addToCart(product.id, 1);
       showFadeAlert('장바구니에 추가되었습니다!', 'success');
       
-      // 2초 후 장바구니로 이동
+      // 1초 후 장바구니로 이동
       setTimeout(() => {
         navigate('/cart');
-      }, 2000);
+      }, 1000);
     } catch (error) {
       if (error.message.includes('이미 장바구니에 있는 상품입니다')) {
         showFadeAlert('이미 장바구니에 있는 상품입니다.', 'error');
@@ -49,8 +50,8 @@ const VirtualResult = () => {
   };
 
   return (
-    <div className="max-w-md mx-auto flex flex-col min-h-[calc(100vh-56px)] bg-gray-100 px-4 py-8">
-      <div className="w-full h-full bg-white rounded-2xl shadow-lg p-6 flex flex-col">
+    <div className="min-h-screen bg-gray-900 flex flex-col items-center py-4">
+      <div className="w-full max-w-md min-h-[calc(100vh-56px)] bg-white rounded-2xl shadow-lg p-6 flex flex-col mb-4">
         
         {/* 헤더 */}
         <div className="flex items-center justify-between mb-6">
@@ -77,7 +78,7 @@ const VirtualResult = () => {
               />
               <div>
                 <p className="font-semibold text-gray-800 line-clamp-1">{selectedWatch.name}</p>
-                <p className="text-sm text-gray-600">{selectedWatch.price}</p>
+                <p className="text-sm text-gray-600">{formatPrice(selectedWatch.price)}</p>
               </div>
             </div>
           </div>
@@ -100,37 +101,38 @@ const VirtualResult = () => {
         </div>
 
         {/* 액션 버튼들 */}
-        <div className="flex gap-3 mt-6">
-          <button
-            onClick={handleTryAgain}
-            className="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-xl font-medium hover:bg-gray-200 transition"
-          >
-            다시 시도
-          </button>
-          
-          <button
-            onClick={() => handleAddToCart(selectedWatch, selectedWatch.id)}
-            disabled={processing[selectedWatch.id] === 'adding'}
-            className="w-1/2 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {processing[selectedWatch.id] === 'adding' ? (
-              <span className="flex items-center justify-center">
-                <div className="w-4 h-4 animate-spin border-2 border-white border-t-transparent rounded-full mr-2"></div>
-                추가 중...
-              </span>
-            ) : (
-              '장바구니에 담기' 
-            )}
+        <div className="mt-6 space-y-4">
+          <div className="flex gap-4 pb-4">
+            <button
+              onClick={handleTryAgain}
+              className="flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-xl font-medium hover:bg-gray-200 transition"
+            >
+              다시 시도
+            </button>
             
-          </button>
-        </div>
+            <button
+              onClick={() => handleAddToCart(selectedWatch, selectedWatch.id)}
+              disabled={processing[selectedWatch.id] === 'adding'}
+              className="flex-1 bg-blue-500 text-white py-3 px-4 rounded-xl font-medium hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {processing[selectedWatch.id] === 'adding' ? (
+                <span className="flex items-center justify-center">
+                  <div className="w-4 h-4 animate-spin border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                  추가 중...
+                </span>
+              ) : (
+                '장바구니에 담기' 
+              )}
+            </button>
+          </div>
 
-        {/* 쇼핑 계속하기 */}
-        <Link to="/watch-store" className="mt-3">
-          <button className="w-full bg-green-600 text-white py-3 px-4 rounded-xl font-medium hover:bg-green-700 transition">
-            다른 시계 구경하기
-          </button>
-        </Link>
+          {/* 쇼핑 계속하기 */}
+          <Link to="/watch-store">
+            <button className="w-full bg-green-600 text-white py-3 px-4 rounded-xl font-medium hover:bg-green-700 transition">
+              다른 시계 구경하기
+            </button>
+          </Link>
+        </div>
       </div>
       <FadeAlert message={alertMessage} type={alertType} show={showAlert} />
     </div>

@@ -29,8 +29,11 @@ const processingImages = new Set();
  * @param {string} price - 상품 가격
  * @param {string|number} id - 상품 고유 ID
  * @param {boolean} isVisible - 가시성 여부 (가상화에서 사용)
+ * @param {string[]} wishlistIds - 찜 목록에 포함된 상품 ID 목록
+ * @param {function} onWishlistChange - 찜 목록 변경 시 호출될 콜백 함수
+ * @param {function} onCartChange - 장바구니 변경 시 호출될 콜백 함수
  */
-const ProductCard = ({ image, name, price, id, isVisible = false }) => {
+const ProductCard = ({ image, name, price, id, isVisible = false, wishlistIds = [], onWishlistChange, onCartChange }) => {
   const { isLoggedIn } = useAuth();
   const { alertMessage, alertType, showAlert, showFadeAlert } = useFadeAlert();
   
@@ -39,7 +42,7 @@ const ProductCard = ({ image, name, price, id, isVisible = false }) => {
   const [isLoading, setIsLoading] = useState(false);              // 로딩 상태
 
   const [shouldLoad, setShouldLoad] = useState(false);            // 로딩 시작 여부
-  const [isWishlisted, setIsWishlisted] = useState(false);        // 찜 상태
+  const isWishlisted = wishlistIds?.includes(id);
   const [isAddingToCart, setIsAddingToCart] = useState(false);    // 장바구니 추가 중
   const [isTogglingWish, setIsTogglingWish] = useState(false);    // 찜 토글 중
   
@@ -258,39 +261,6 @@ const ProductCard = ({ image, name, price, id, isVisible = false }) => {
   };
 
   /**
-   * 찜 상태 확인 함수
-   */
-  const checkWishlistStatus = useCallback(async () => {
-    if (!isLoggedIn || !id) return;
-    
-    try {
-      const response = await fetch(`${API_BASE_URL}/wishlist/check/${id}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${tokenStorage.getToken('access_token')}`
-        }
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        setIsWishlisted(result.is_wishlisted);
-      }
-    } catch (error) {
-      // 에러 시 기본값 유지
-    }
-  }, [isLoggedIn, id]);
-
-  /**
-   * 컴포넌트 마운트 시 찜 상태 확인 (중복 호출 방지)
-   */
-  useEffect(() => {
-    if (isLoggedIn && id) {
-      checkWishlistStatus();
-    }
-  }, [checkWishlistStatus]);
-
-  /**
    * 지연 로딩 트리거: shouldLoad가 true가 되면 이미지 리사이징 시작
    */
   useEffect(() => {
@@ -322,6 +292,7 @@ const ProductCard = ({ image, name, price, id, isVisible = false }) => {
       setIsAddingToCart(true);
       await addToCart(id, 1);
       showFadeAlert('장바구니에 추가되었습니다!', 'success');
+      if (onCartChange) onCartChange();
     } catch (error) {
       if (error.message.includes('이미 장바구니에 있는 상품입니다')) {
         showFadeAlert('이미 장바구니에 있는 상품입니다.', 'error');
@@ -350,11 +321,11 @@ const ProductCard = ({ image, name, price, id, isVisible = false }) => {
       const result = await toggleWishlist(id);
       
       if (result.action === 'added') {
-        setIsWishlisted(true);
         showFadeAlert('찜목록에 추가되었습니다!', 'success');
+        if (onWishlistChange) onWishlistChange();
       } else if (result.action === 'removed') {
-        setIsWishlisted(false);
         showFadeAlert('찜목록에서 제거되었습니다!', 'success');
+        if (onWishlistChange) onWishlistChange();
       }
     } catch (error) {
       showFadeAlert('찜하기에 실패했습니다.', 'error');
@@ -411,8 +382,10 @@ const ProductCard = ({ image, name, price, id, isVisible = false }) => {
       </Link>
       
       {/* 상품 정보 */}
-      <div className="h-16 text-gray-700 text-sm mb-1 line-clamp-2">{name}</div>
-      <div className="text-xs font-bold mb-3">{formatPrice(price)}</div>
+      <div className="flex-1 flex flex-col justify-between">
+        <div className="line-clamp-2 text-gray-700 text-sm leading-tight mb-1">{name}</div>
+        <div className="text-xs font-bold mb-3">{formatPrice(price)}</div>
+      </div>
       
       {/* 액션 버튼들 */}
       <div className="absolute bottom-4 right-4 flex space-x-2">

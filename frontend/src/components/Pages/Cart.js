@@ -13,6 +13,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { getCartItems, updateCartItem, removeFromCart } from '../../utils/api';
 import { useImageResize } from '../Hooks/useImageResize';
 import { formatPrice } from '../../utils/formatUtils';
+import useFadeAlert from '../Hooks/useFadeAlert';
+import FadeAlert from '../Common/FadeAlert/FadeAlert';
 
 /**
  * 장바구니 개별 아이템 컴포넌트 (이미지 리사이징 적용)
@@ -116,6 +118,7 @@ const Cart = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [updating, setUpdating] = useState({});
+  const { showFadeAlert, alertMessage, alertType, showAlert } = useFadeAlert();
 
   // 컴포넌트 마운트 시 장바구니 데이터 로드
   useEffect(() => {
@@ -194,12 +197,12 @@ const Cart = () => {
    */
   const handleCheckout = () => {
     if (cartItems.length === 0) {
-      alert('장바구니가 비어있습니다.');
+      showFadeAlert('장바구니가 비어있습니다.', 'error');
       return;
     }
     
     // TODO: 주문 페이지로 이동
-    alert('준비중입니다.')
+    showFadeAlert('준비중입니다.', 'error');
   };
 
   // 총 금액 계산
@@ -210,90 +213,96 @@ const Cart = () => {
   // 로딩 상태
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">장바구니를 불러오는 중...</p>
+      <div className="min-h-screen bg-gray-900 flex flex-col items-center py-4">
+        <div className="w-full max-w-md min-h-[calc(100vh-56px)] bg-white rounded-2xl shadow-lg p-6 flex flex-col mb-4">
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+              <p className="text-gray-600">장바구니를 불러오는 중...</p>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* 헤더 */}
-      <div className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="max-w-md mx-auto px-4 py-4 flex items-center">
+    <div className="min-h-screen bg-gray-900 flex flex-col items-center py-4">
+      <div className="w-full max-w-md min-h-[calc(100vh-56px)] bg-white rounded-2xl shadow-lg flex flex-col mb-4 relative">
+        {/* 헤더 */}
+        <div className="sticky top-0 z-10 bg-white flex items-center justify-between p-6 border-b border-gray-100 rounded-t-2xl">
           <button
             onClick={() => navigate(-1)}
-            className="mr-4 p-2 rounded-full hover:bg-gray-100 transition-colors"
+            className="bg-gray-100 rounded-xl p-2 shadow hover:bg-gray-200 transition"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <h1 className="text-xl font-semibold text-gray-900">장바구니</h1>
+          <h1 className="text-xl font-bold text-gray-800">장바구니</h1>
+          <div className="w-10"></div>
         </div>
-      </div>
 
-      {/* 메인 콘텐츠 */}
-      <div className="max-w-md mx-auto px-4 py-6">
-        {/* 에러 메시지 */}
-        {error && (
-          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
-            {error}
-          </div>
-        )}
+        {/* 메인 콘텐츠 */}
+        <div className="flex-1 overflow-y-auto p-6 pb-32" style={{ maxHeight: 'calc(100vh - 160px)' }}>
+          {/* 에러 메시지 */}
+          {error && (
+            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+              {error}
+            </div>
+          )}
 
-        {/* 장바구니 아이템 목록 */}
-        <div className="space-y-4 mb-6">
-          {cartItems.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
-                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.1 5M7 13l-1.1 5m0 0h12.4" />
-                </svg>
+          {/* 장바구니 아이템 목록 */}
+          <div className="space-y-4 mb-6">
+            {cartItems.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
+                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.1 5M7 13l-1.1 5m0 0h12.4" />
+                  </svg>
+                </div>
+                <p className="text-gray-500 mb-4">장바구니가 비어있습니다</p>
+                <button
+                  onClick={() => navigate('/')}
+                  className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                >
+                  쇼핑 계속하기
+                </button>
               </div>
-              <p className="text-gray-500 mb-4">장바구니가 비어있습니다</p>
+            ) : (
+              cartItems.map((item) => (
+                <CartItem
+                  key={item.id}
+                  item={item}
+                  onQuantityChange={handleQuantityChange}
+                  onRemove={handleRemoveItem}
+                  isUpdating={updating[item.id]}
+                />
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* 하단 고정 버튼 */}
+        {cartItems.length > 0 && (
+          <div className="fixed bottom-0 left-0 w-full flex justify-center z-20">
+            <div className="max-w-md w-full bg-white border-t border-gray-100 p-4 rounded-b-2xl">
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-lg font-medium text-gray-900">총 금액:</span>
+                <span className="text-2xl font-bold text-gray-900">
+                  {formatPrice(totalAmount)}
+                </span>
+              </div>
               <button
-                onClick={() => navigate('/')}
-                className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                onClick={handleCheckout}
+                className="w-full py-4 bg-gray-900 text-white text-lg font-medium rounded-xl hover:bg-gray-800 transition-colors"
               >
-                쇼핑 계속하기
+                주문하기
               </button>
             </div>
-          ) : (
-            cartItems.map((item) => (
-              <CartItem
-                key={item.id}
-                item={item}
-                onQuantityChange={handleQuantityChange}
-                onRemove={handleRemoveItem}
-                isUpdating={updating[item.id]}
-              />
-            ))
-          )}
-        </div>
-
-    
-        {/* 총 금액 및 체크아웃 */}
-        {cartItems.length > 0 && (
-          <div className="bg-white rounded-lg p-4 shadow-sm">
-            <div className="flex justify-between items-center mb-4">
-              <span className="text-lg font-medium text-gray-900">총 금액:</span>
-              <span className="text-2xl font-bold text-gray-900">
-                {formatPrice(totalAmount)}
-              </span>
-            </div>
-            
-            <button
-              onClick={handleCheckout}
-              className="w-full py-4 bg-gray-900 text-white text-lg font-medium rounded-lg hover:bg-gray-800 transition-colors"
-            >
-              주문하기
-            </button>
           </div>
         )}
+        <FadeAlert message={alertMessage} type={alertType} show={showAlert} />
       </div>
     </div>
   );
