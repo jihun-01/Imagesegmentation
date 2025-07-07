@@ -291,6 +291,7 @@ const Cart = () => {
             )}
           </div>
         </div>
+        
 
         {/* 하단 고정 버튼 */}
         {cartItems.length > 0 && (

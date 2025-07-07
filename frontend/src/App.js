@@ -8,7 +8,9 @@ import VirtualResult from "./components/Pages/VirtualResult";
 import Login from "./components/Pages/Login";
 import Cart from "./components/Pages/Cart";
 import Wishlist from "./components/Pages/Wishlist"; 
+import ChatBot from "./components/Pages/ChatBot";
 import NotFound from "./components/Pages/NotFound";
+
 
 const WatchStore = lazy(() => import("./components/Pages/WatchStore"));
 
@@ -26,6 +28,7 @@ function App() {
           <Route path="/regist" element={<Regist />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/wishlist" element={<Wishlist />} />
+          <Route path="/chatbot" element={<ChatBot />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

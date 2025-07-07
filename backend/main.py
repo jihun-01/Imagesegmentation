@@ -481,6 +481,6 @@ if __name__ == "__main__":
     port = int(os.getenv("API_PORT", "8000"))
     
     print("가상 시계 착용 API 서버를 시작합니다...")
-    print(f"API 문서: http://localhost:{port}/docs")
-    print(f"헬스체크: http://localhost:{port}/health")
+    print(f"API 문서: http://{host}:{port}/docs")
+    print(f"헬스체크: http://{host}:{port}/health")
     uvicorn.run(app, host=host, port=port)

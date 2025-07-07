@@ -136,8 +136,8 @@ const VirtualWear = ({ onImageSelect }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 flex flex-col items-center py-4">
-      <div className="w-full max-w-md min-h-[calc(100vh-56px)] bg-white rounded-2xl shadow-lg p-6 flex flex-col mb-4">
+    <div className="min-h-screen bg-gray-900 flex flex-col items-center py-4 overflow-hidden">
+      <div className="w-full max-w-md min-h-[calc(100vh-2rem)] bg-white rounded-2xl shadow-lg p-6 flex flex-col overflow-y-auto">
         
         {/* 헤더 */}
         <div className="flex items-center justify-between mb-6">
@@ -228,20 +228,22 @@ const VirtualWear = ({ onImageSelect }) => {
         />
         
         {/* 안내 텍스트 */}
-        <div className="mt-6 text-center space-y-2">
-          {selectedFile && !isProcessing && (
-            <p className="text-sm text-gray-700">
-              선택된 파일: {selectedFile.name}
+        <div className='flex flex-col items-center'>
+          <div className="mt-6 text-center space-y-2">
+            {selectedFile && !isProcessing && (
+              <p className="text-sm text-gray-700">
+                선택된 파일: {selectedFile.name}
+              </p>
+            )}
+            
+            <p className="text-xs text-gray-600">
+              {isProcessing ? 'AI가 가상 착용을 처리하고 있습니다...' : '업로드 버튼을 눌러 시계를 착용해볼 손 사진을 업로드 해 주세요'}
             </p>
-          )}
-          
-          <p className="text-sm text-gray-600">
-            {isProcessing ? 'AI가 가상 착용을 처리하고 있습니다...' : '업로드 버튼을 눌러 시계를 착용해볼 손 사진을 업로드 해 주세요'}
-          </p>
-          
-          <p className="text-xs text-gray-500">
-            지원 형식: JPG, PNG (최대 10MB)
-          </p>
+            
+            <p className="text-xs text-gray-500">
+              지원 형식: JPG, PNG (최대 10MB)
+            </p>
+          </div>
         </div>
       </div>
     </div>

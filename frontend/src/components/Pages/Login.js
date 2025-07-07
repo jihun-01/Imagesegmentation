@@ -74,6 +74,15 @@ const Login = () => {
           errorMessage = error.message;
         }
       }
+      if (error.message.includes('Failed to fetch')) {
+        errorMessage = '서버에 연결할 수 없습니다. 백엔드 서버가 실행 중인지 확인하세요.';
+      }
+      if (error.message.includes('TypeError' && error.message.includes('fetch'))) {
+        errorMessage = '네트워크 연결에 실패했습니다. 서버가 실행 중인지 확인하세요.';
+      }
+      if (error.message.includes('Network Error')) {
+        errorMessage = '네트워크 연결에 실패했습니다. 서버가 실행 중인지 확인하세요.';
+      }
       
       setError(errorMessage);
       showFadeAlert(errorMessage, 'error');

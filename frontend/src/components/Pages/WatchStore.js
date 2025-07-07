@@ -18,14 +18,15 @@ import likeicon from '../Assets/icons/likeicon.png';
 import usericon from '../Assets/icons/usericon.png';
 import searchicon from '../Assets/icons/searchicon.png';
 import carticon from '../Assets/icons/shppingcarticon.png';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import useFadeAlert from '../Hooks/useFadeAlert';
 import FadeAlert from '../Common/FadeAlert/FadeAlert';  
+import chatboticon from '../Assets/icons/chat.png';
 
 function WatchStore() {
   // 인증 상태 관리
   const { user, isLoggedIn, logout } = useAuth();
-  
+  const navigate = useNavigate(); 
   // 상품 및 UI 상태 관리
   const [products, setProducts] = useState([]);                            // 전체 상품 목록 (DB에서 가져온 데이터)
   const [selectedCategory, setSelectedCategory] = useState('인기');        // 선택된 카테고리
@@ -236,12 +237,11 @@ function WatchStore() {
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col items-center py-4">
       {/* 메인 컨테이너 - 모바일 최적화된 카드 형태 */}
-      <div className="w-full max-w-md h-[calc(100vh-2rem)] bg-white rounded-2xl shadow-lg p-4 flex flex-col overflow-hidden">
-        
+      <div className="w-full max-w-md h-[calc(100vh-2rem)] bg-white rounded-2xl shadow-lg p-4 flex flex-col overflow-hidden relative">
         {/* 상단 헤더: 검색/로고/액션 버튼들 */}
         <div className="flex justify-between items-center mb-2">
           <button onClick={handleSearchIconClick}>
-            <img src={searchicon} alt="searchicon" className='w-6 h-6'/>
+            <img src={searchicon} alt="searchicon" className='w-6 h-6 ml-4 mb-2 hover:bg-gray-100 rounded-lg transition-colors'/>
           </button>
           <span className="text-2xl font-bold text-center flex-1">
             JH <span className="block font-extrabold">shop</span>
@@ -249,7 +249,7 @@ function WatchStore() {
           <div className="flex space-x-2">
             {/* 장바구니 버튼 */}
             <Link to="/cart">
-              <button className="p-1 hover:bg-gray-100 rounded-lg transition-colors relative">
+              <button className="p-1 hover:bg-gray-100 rounded-lg transition-colors relative mr-4 mb-2">
                 <img src={carticon} alt="carticon" className='w-6 h-6'/>
                 {cartCount > 0 && (
                   <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 min-w-[18px] flex items-center justify-center border-2 border-white">
@@ -333,10 +333,15 @@ function WatchStore() {
             </>
           )}
         </div>
+        {/* 챗봇 버튼 */}
+        <div onClick={() => navigate('/chatbot')} className="absolute bottom-44 right-6 -translate-x-1/2 w-16 h-12 bg-gray-100 hover:bg-blue-400 transition-colors rounded-full shadow-lg flex items-center justify-center gap-1">
+          <img src={chatboticon} alt="chatboticon" className='w-6 h-6'/> 
+          <span className="text-xs font-bold">챗봇</span>
+        </div>
       </div>
 
       {/* 하단 고정 네비게이션 바 */}
-      <div className="fixed bottom-0 w-full max-w-md mx-auto bg-white rounded-t-2xl shadow-lg flex justify-around items-center py-3">
+      <div className="fixed bottom-0 w-full max-w-md mx-auto bg-white rounded shadow-lg flex justify-around items-center py-3">
         {/* 홈 버튼 */}
         <Link to="/"> 
           <button className='flex flex-col items-center'>

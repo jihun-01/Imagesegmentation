@@ -194,11 +194,9 @@ const ProductDetail = () => {
             className="w-3/4 h-[400px] mx-28 object-cover rounded-b-3xl" 
             loading="lazy"
           />
-          <Link to="/">
-            <button className="absolute top-4 left-4 bg-white rounded-xl p-2 shadow">
+            <button onClick={() => navigate(-1)} className="absolute top-6 left-6 bg-gray-100 rounded-xl p-2 shadow">
               <img src={backicon} alt="backicon" className="w-6 h-6" />
             </button>
-          </Link>
         </div>
         
         {/* 상세 정보 */}
@@ -227,7 +225,7 @@ const ProductDetail = () => {
         </div>
         
         {/* 하단 고정 버튼 */}
-        <div className="fixed bottom-0 max-w-md w-full bg-white border-t border-gray-100 p-4 flex gap-3 rounded-b-2xl mt-auto">
+        <div className="fixed bottom-0 max-w-md w-full bg-white border-t border-gray-100 p-4 flex gap-3 mt-auto">
           <button 
             onClick={handleWishlist}
             disabled={isTogglingWish}
