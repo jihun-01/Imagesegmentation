@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useFadeAlert from '../Hooks/useFadeAlert';
 import FadeAlert from '../Common/FadeAlert/FadeAlert';
+import BackButton from '../Common/Buttons/BackButton';
 
 const NotFound = () => {
     const navigate = useNavigate();

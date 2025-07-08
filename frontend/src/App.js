@@ -2,17 +2,17 @@ import React, { lazy, Suspense } from "react";
 import Regist from "./auth/Regist";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
-import ProductDetail from "./components/Pages/ProductDetail";
 import VirtualWear from "./components/Pages/VirtualWear";
 import VirtualResult from "./components/Pages/VirtualResult";
 import Login from "./components/Pages/Login";
-import Cart from "./components/Pages/Cart";
-import Wishlist from "./components/Pages/Wishlist"; 
 import ChatBot from "./components/Pages/ChatBot";
 import NotFound from "./components/Pages/NotFound";
 
 
 const WatchStore = lazy(() => import("./components/Pages/WatchStore"));
+const ProductDetail = lazy(() => import("./components/Pages/ProductDetail"));
+const Cart = lazy(() => import("./components/Pages/Cart"));
+const Wishlist = lazy(() => import("./components/Pages/Wishlist"));
 
 function App() {
   return (
@@ -21,7 +21,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Suspense fallback={<div className="animate-spin flex justify-center items-center h-screen">페이지 불러오는중...</div>}><WatchStore /></Suspense>} />
           <Route path="/watch-store" element={<WatchStore />} />
-          <Route path="/product/:id" element={<ProductDetail />} />
+          <Route path="/product/:id" element={<Suspense fallback={<div className="animate-spin flex justify-center items-center h-screen">상품 불러오는중...</div>}><ProductDetail /></Suspense>} />
           <Route path="/virtual-wear" element={<VirtualWear />} />
           <Route path="/virtual-result" element={<VirtualResult />} />
           <Route path="/login" element={<Login />} /> 

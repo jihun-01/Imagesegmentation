@@ -5,6 +5,7 @@ import { validateEmail, validatePassword, escapeHtml } from '../utils/security';
 import JH from '../components/Assets/icons/JH.png';
 import useFadeAlert from '../components/Hooks/useFadeAlert';
 import FadeAlert from '../components/Common/FadeAlert/FadeAlert';
+import BackButton from '../components/Common/Buttons/BackButton';
 
 const Regist = () => {
   const navigate = useNavigate();
@@ -105,32 +106,34 @@ const Regist = () => {
   };
 
   return (
-    <div className="min-h-screen max-w-md mx-auto bg-gray-100 text-black">
-      {/* 미니멀 헤더 */}
-      <div className="border-b border-gray-200">
-        <div className="max-w-7xl mx-auto p-4 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <img 
-              src={JH} 
-              alt="Logo" 
-              className="w-16 h-16"
-            />
-            <span className="font-semibold text-xl">JH SHOP</span>
-          </div>
+    <div className="min-h-screen bg-gray-900 flex flex-col items-center py-4">
+      <div className="w-full max-w-md h-[calc(100vh-2rem)] bg-white rounded-2xl shadow-lg p-4 flex flex-col overflow-hidden relative">
+        
+        {/* 뒤로가기 버튼 */}
+        <div className="flex justify-start mb-4">
+          <BackButton />
         </div>
-      </div>
 
-      {/* 메인 콘텐츠 */}
-      <div className="max-w-7xl mx-auto">
-        <div className="max-w-md mx-auto my-8">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold mb-2">회원가입</h2>
-            <p className="text-gray-500">이메일로 회원가입</p>
-          </div>
+        {/* 로고 섹션 */}
+        <div className="flex justify-center mb-8 mt-6">
+          <img 
+            src={JH} 
+            alt="Logo" 
+            className="h-12 w-12 rounded-full shadow-lg"
+          />
+        </div>
 
+        {/* 헤더 섹션 */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-black">회원가입</h1>
+          <p className="text-gray-600">이메일로 회원가입</p>
+        </div>
+
+        {/* 메인 콘텐츠 */}
+        <div className="flex-1 overflow-y-auto">
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
-              <label className="block text-sm font-medium mb-2 ml-3" htmlFor="username">
+              <label className="block text-sm font-medium ml-3" htmlFor="username">
                 닉네임
               </label>
               <input 
@@ -146,7 +149,7 @@ const Regist = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2 ml-3" htmlFor="email">
+              <label className="block text-sm font-medium ml-3" htmlFor="email">
                 이메일 주소
               </label>
               <input 
@@ -161,7 +164,7 @@ const Regist = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2 ml-3" htmlFor="name">
+              <label className="block text-sm font-medium ml-3" htmlFor="name">
                 이름
               </label>
               <input 
@@ -176,7 +179,7 @@ const Regist = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2 ml-3" htmlFor="phone">
+              <label className="block text-sm font-medium ml-3" htmlFor="phone">
                 전화번호 (선택사항)
               </label>
               <input 
@@ -191,7 +194,7 @@ const Regist = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2 ml-3" htmlFor="password">
+              <label className="block text-sm font-medium ml-3" htmlFor="password">
                 비밀번호
               </label>
               <input 
@@ -207,7 +210,7 @@ const Regist = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2 ml-3" htmlFor="passwordcheck">
+              <label className="block text-sm font-medium ml-3" htmlFor="passwordcheck">
                 비밀번호 확인
               </label>
               <input 
@@ -250,19 +253,6 @@ const Regist = () => {
               <Link to="/login" className="text-indigo-500 hover:text-indigo-600">로그인</Link>
             </div>
           </form>
-        </div>
-      </div>
-
-      {/* 미니멀 푸터 */}
-      <div className="border-t border-gray-200 mt-auto">
-        <div className="max-w-7xl mx-auto p-4">
-          <div className="flex justify-between items-center text-sm whitespace-nowrap gap-2 text-gray-500">
-            <div>© 2025 JH SHOP. All rights reserved.</div>
-            <div className="flex gap-4">
-              <a href="#" onClick={notready} className="hover:text-indigo-500 text-sm">이용약관</a>
-              <a href="#" onClick={notready} className="hover:text-indigo-500 text-sm">개인정보처리방침</a>
-            </div>
-          </div>
         </div>
       </div>
 

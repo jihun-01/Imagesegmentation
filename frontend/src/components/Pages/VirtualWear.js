@@ -4,6 +4,7 @@ import backicon from '../Assets/icons/backicon.png';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../../utils/config';
 import { formatPrice } from '../../utils/formatUtils';
+import BackButton from '../Common/Buttons/BackButton';
 
 
 const VirtualWear = ({ onImageSelect }) => {
@@ -141,15 +142,8 @@ const VirtualWear = ({ onImageSelect }) => {
         
         {/* 헤더 */}
         <div className="flex items-center justify-between mb-6">
-          <button 
-            onClick={() => navigate(-1)}
-            className="bg-gray-100 rounded-xl p-2 shadow hover:bg-gray-200 transition"
-          >
-            <img src={backicon} alt="뒤로가기" className="w-6 h-6" />
-          </button>
-          
+          <BackButton />
           <h1 className="text-xl font-bold text-gray-800">가상 착용</h1>
-          
           <div className="w-10"></div> {/* 공간 맞추기용 */}
         </div>
           

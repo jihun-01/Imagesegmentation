@@ -5,6 +5,7 @@ import { validateEmail, escapeHtml } from '../../utils/security';
 import JH from '../Assets/icons/JH.png';
 import useFadeAlert from '../Hooks/useFadeAlert';
 import FadeAlert from '../Common/FadeAlert/FadeAlert';
+import BackButton from '../Common/Buttons/BackButton';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -99,10 +100,16 @@ const Login = () => {
     <>
       <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
       
-      <div className="min-h-screen mx-auto bg-gray-900 flex items-center justify-center p-4">
-        <div className="max-w-md mx-auto w-full bg-white rounded-xl p-8 shadow-2xl">
+      <div className="min-h-screen bg-gray-900 flex flex-col items-center py-4">
+        <div className="w-full max-w-md h-[calc(100vh-2rem)] bg-white rounded-2xl shadow-lg p-4 flex flex-col overflow-hidden relative">
+          
+          {/* 뒤로가기 버튼 */}
+          <div className="flex justify-start mb-4">
+            <BackButton />
+          </div>
+
           {/* 로고 섹션 */}
-          <div className="flex justify-center mb-8">
+          <div className="flex justify-center mb-8 mt-12">
             <img 
               src={JH} 
               alt="Logo" 
@@ -202,13 +209,8 @@ const Login = () => {
             <Link to="/regist" className="font-medium text-blue-500 hover:text-blue-700">회원가입</Link>
           </p>
         </div>
+        <FadeAlert message={alertMessage} type={alertType} show={showAlert} />
       </div>
-      <FadeAlert
-        show={showAlert}
-        message={alertMessage}
-        type={alertType}
-        position="bottom"
-      />
     </>
   );
 };

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import BackButton from '../Common/Buttons/BackButton';
 import backicon from '../Assets/icons/backicon.png';
 import { addToCart } from '../../utils/api';
 import useFadeAlert from '../Hooks/useFadeAlert';
@@ -12,11 +13,15 @@ const VirtualResult = () => {
   const [processing, setProcessing] = useState({});
   const { alertMessage, alertType, showAlert, showFadeAlert } = useFadeAlert();
   
-  const { result, selectedWatch } = location.state || {};
+  const { result, selectedWatch, originalHandImage } = location.state || {};
 
-  // 결과 데이터가 없으면 이전 페이지로 리다이렉트
-  if (!result) {
-    navigate(-1);
+  useEffect(() => {
+    if (!result || !selectedWatch) {
+      navigate(-1);
+    }
+  }, [result, selectedWatch, navigate]);
+
+  if (!result || !selectedWatch) {
     return null;
   }
 
@@ -55,12 +60,7 @@ const VirtualResult = () => {
         
         {/* 헤더 */}
         <div className="flex items-center justify-between mb-6">
-          <button 
-            onClick={() => navigate(-1)}
-            className="bg-gray-100 rounded-xl p-2 shadow hover:bg-gray-200 transition"
-          >
-            <img src={backicon} alt="뒤로가기" className="w-6 h-6" />
-          </button>
+          <BackButton />
           
           <h1 className="text-xl font-bold text-gray-800">가상 착용 결과</h1>
           

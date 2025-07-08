@@ -12,16 +12,13 @@ import { useAuth } from '../../contexts/AuthContext';
 import { getProducts } from '../../utils/api';
 import { getWishlistItems, getCartItems } from '../../utils/api';
 import popicon from '../Assets/icons/popicon.png';
-import homeicon from '../Assets/icons/homeicon.png';
-import menuicon from '../Assets/icons/listicon.png';
-import likeicon from '../Assets/icons/likeicon.png';
-import usericon from '../Assets/icons/usericon.png';
 import searchicon from '../Assets/icons/searchicon.png';
 import carticon from '../Assets/icons/shppingcarticon.png';
 import { Link, useNavigate } from 'react-router-dom';
 import useFadeAlert from '../Hooks/useFadeAlert';
 import FadeAlert from '../Common/FadeAlert/FadeAlert';  
 import chatboticon from '../Assets/icons/chat.png';
+import BottomNavigation from '../Common/BottomNavigation';
 
 function WatchStore() {
   // 인증 상태 관리
@@ -341,47 +338,14 @@ function WatchStore() {
       </div>
 
       {/* 하단 고정 네비게이션 바 */}
-      <div className="fixed bottom-0 w-full max-w-md mx-auto bg-white rounded shadow-lg flex justify-around items-center py-3">
-        {/* 홈 버튼 */}
-        <Link to="/"> 
-          <button className='flex flex-col items-center'>
-            <img src={homeicon} alt="homeicon" className='w-6 h-6'/>
-            <span className="text-xs">홈</span>
-          </button>
-        </Link>
-        
-        {/* 카테고리 버튼 (준비중) */}
-        <button className='flex flex-col items-center' onClick={() => showFadeAlert('준비중입니다.', 'error')}>
-          <img src={menuicon} alt="menuicon" className='w-6 h-6'/>
-          <span className="text-xs">카테고리</span>
-        </button>
-        
-        {/* 찜하기 버튼 */}
-        <Link to="/wishlist">
-          <button className='flex flex-col items-center'>
-            <img src={likeicon} alt="likeicon" className='w-6 h-6'/>
-            <span className="text-xs">찜하기{wishlistCount > 0 ? ` (${wishlistCount})` : ''}</span>
-          </button>
-        </Link>
-        
-        {/* 사용자 버튼 - 로그인 상태에 따라 다르게 표시 */}
-        {isLoggedIn ? (
-          <button 
-            className='flex flex-col items-center' 
-            onClick={logout}
-          >
-            <img src={usericon} alt="usericon" className='w-6 h-6'/>
-            <span className="text-xs">{user?.name || '로그아웃'}</span>
-          </button>
-        ) : (
-          <Link to="/login">
-            <button className='flex flex-col items-center'>
-              <img src={usericon} alt="usericon" className='w-6 h-6'/>
-              <span className="text-xs">로그인</span>
-            </button>
-          </Link>
-        )}
-      </div>
+      <BottomNavigation
+        isLoggedIn={isLoggedIn}
+        user={user}
+        wishlistCount={wishlistCount}
+        onLogout={logout}
+        onCategoryClick={() => showFadeAlert('준비중입니다.', 'error')}
+        className="rounded"
+      />
       <FadeAlert message={alertMessage} type={alertType} show={showAlert} />
     </div>
   );

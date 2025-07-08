@@ -11,6 +11,7 @@ import { Link } from 'react-router-dom';
 import useFadeAlert from '../Hooks/useFadeAlert';
 import FadeAlert from '../Common/FadeAlert/FadeAlert';
 import useQuantity from '../Hooks/useQuantity';
+import BackButton from '../Common/Buttons/BackButton';
 
 // 별점 컴포넌트
 const StarRating = ({ rating }) => (
@@ -185,7 +186,11 @@ const ProductDetail = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col items-center py-4">
-      <div className="w-full max-w-md flex-1 bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col">
+      <div className="w-full max-w-md min-h-[calc(100vh-2rem)] bg-white rounded-2xl shadow-lg relative overflow-hidden">
+        
+        {/* 뒤로가기 버튼 */}
+        <BackButton className="absolute top-6 left-6 z-10" />
+
         {/* 상단 이미지 - 원본 이미지 직접 사용 */}
         <div className="relative bg-white">
           <img 
@@ -194,9 +199,6 @@ const ProductDetail = () => {
             className="w-3/4 h-[400px] mx-28 object-cover rounded-b-3xl" 
             loading="lazy"
           />
-            <button onClick={() => navigate(-1)} className="absolute top-6 left-6 bg-gray-100 rounded-xl p-2 shadow">
-              <img src={backicon} alt="backicon" className="w-6 h-6" />
-            </button>
         </div>
         
         {/* 상세 정보 */}
