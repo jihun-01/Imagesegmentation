@@ -6,7 +6,7 @@
 - 손목 위치 분석 및 각도 계산
 """
 
-from fastapi import FastAPI, File, UploadFile, HTTPException, Form, BackgroundTasks, Request
+from fastapi import FastAPI, File, UploadFile, HTTPException, Form, BackgroundTasks, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 import cv2
@@ -20,12 +20,15 @@ import uuid
 import hashlib
 from hand_watch_segmentation import HandWatchSegmentation
 from dotenv import load_dotenv
+from models import ChatHistory
+from sqlalchemy.orm import Session
 
 # 라우터 임포트
 from routes.auth import router as auth_router
 from routes.products import router as products_router
 from routes.cart import router as cart_router
 from routes.wishlist import router as wishlist_router
+from routes.chatbot import router as chatbot_router
 
 # 보안 미들웨어 임포트
 from security_middleware import SecurityMiddleware, RequestSizeMiddleware
@@ -77,6 +80,7 @@ app.include_router(auth_router)
 app.include_router(products_router)
 app.include_router(cart_router)
 app.include_router(wishlist_router)
+app.include_router(chatbot_router)
 
 @app.get("/", tags=["root"], summary="API 상태 확인")
 async def root():
@@ -467,6 +471,34 @@ async def extract_watch_region(watch_image: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"시계 영역 추출 중 오류: {str(e)}")
 
+def save_chat_history(db, user_id, conversation_id, role, message):
+    chat = ChatHistory(
+        user_id=user_id,
+        conversation_id=conversation_id,
+        role=role,
+        message=message
+    )
+    db.add(chat)
+    db.commit()
+
+# 예시: 챗봇 응답 처리 부분에서 사용
+@app.post("/chat")
+async def chat_endpoint(request: Request, db: Session = Depends(get_db)):
+    data = await request.json()
+    user_id = data.get("user_id")  # 로그인 안 했으면 None
+    conversation_id = data.get("conversation_id")
+    user_message = data.get("message")
+
+    # 1. 사용자 메시지 저장
+    save_chat_history(db, user_id, conversation_id, "user", user_message)
+
+    # 2. 챗봇 응답 생성 (예시)
+    bot_message = "안녕하세요! 무엇을 도와드릴까요?"
+
+    # 3. 챗봇 메시지 저장
+    save_chat_history(db, user_id, conversation_id, "bot", bot_message)
+
+    return {"message": bot_message, "conversation_id": conversation_id}
 
 # 개발 모드에서 서버 직접 실행
 if __name__ == "__main__":

@@ -289,4 +289,44 @@ export const isAuthenticated = () => {
 export const getStoredUserInfo = () => {
   const userInfo = tokenStorage.getToken('user_info');
   return userInfo ? safeJsonParse(userInfo) : null;
+};
+
+// 챗봇 메시지 전송
+export const sendChatMessage = async (message, conversationId, action) => {
+  return apiRequest('/chatbot/message', {
+    method: 'POST',
+    body: JSON.stringify({
+      message,
+      action,
+      conversation_id: conversationId
+    }),
+  });
+};
+
+// 상품 추천 요청
+export const getProductRecommendations = async (category, userPreferences = {}) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/chatbot/recommend`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(tokenStorage.getToken() && {
+          'Authorization': `Bearer ${tokenStorage.getToken()}`
+        })
+      },
+      body: JSON.stringify({
+        category: category,
+        preferences: userPreferences
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('상품 추천 요청 실패:', error);
+    throw error;
+  }
 }; 

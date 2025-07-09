@@ -351,7 +351,7 @@ const ProductCard = ({ image, name, price, id, isVisible = false, wishlistIds = 
 
       {/* 상품 상세 페이지 링크 */}
       <Link to={`/product/${id}`}>
-        <div className="w-40 h-40 rounded-xl mb-4 overflow-hidden bg-gray-100 flex items-center justify-center">
+        <div className="w-40 h-40 max-w-40 max-h-40 rounded-xl mb-4 overflow-hidden bg-gray-100 flex items-center justify-center">
           {!shouldLoad ? (
             // 뷰포트 진입 전: 플레이스홀더 표시
             <div className="text-center">

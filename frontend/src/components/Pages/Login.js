@@ -104,8 +104,8 @@ const Login = () => {
         <div className="w-full max-w-md h-[calc(100vh-2rem)] bg-white rounded-2xl shadow-lg p-4 flex flex-col overflow-hidden relative">
           
           {/* 뒤로가기 버튼 */}
-          <div className="flex justify-start mb-4">
-            <BackButton />
+          <div className="flex items-center justify-between mb-6">
+            <BackButton className="ml-2 mt-2"/>
           </div>
 
           {/* 로고 섹션 */}

@@ -5,8 +5,8 @@ API 요청/응답 스키마 정의
 - 타입 힌팅 및 자동 문서화 지원
 """
 
-from pydantic import BaseModel, EmailStr, validator
-from typing import Optional
+from pydantic import BaseModel, EmailStr, field_validator
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 # === 사용자 관련 스키마 ===
@@ -23,7 +23,8 @@ class UserCreate(UserBase):
     """사용자 생성 요청 스키마"""
     password: str
     
-    @validator('password')
+    @field_validator('password')
+    @classmethod
     def validate_password(cls, v):
         """비밀번호 유효성 검증 (보안 강화)"""
         if len(v) < 8:
@@ -47,7 +48,8 @@ class UserCreate(UserBase):
         
         return v
     
-    @validator('username')
+    @field_validator('username')
+    @classmethod
     def validate_username(cls, v):
         """사용자명 유효성 검증 (보안 강화)"""
         if len(v) < 3:
@@ -64,7 +66,8 @@ class UserCreate(UserBase):
         
         return v
     
-    @validator('email')
+    @field_validator('email')
+    @classmethod
     def validate_email_security(cls, v):
         """이메일 보안 검증"""
         # 이메일 길이 제한
@@ -95,7 +98,8 @@ class UserUpdate(BaseModel):
     address: Optional[str] = None
     password: Optional[str] = None
     
-    @validator('password')
+    @field_validator('password')
+    @classmethod
     def validate_password(cls, v):
         """비밀번호 유효성 검증 (보안 강화)"""
         if v and len(v) < 8:
@@ -179,7 +183,8 @@ class CartItemBase(BaseModel):
     product_id: int
     quantity: int = 1
     
-    @validator('quantity')
+    @field_validator('quantity')
+    @classmethod
     def validate_quantity(cls, v):
         """수량 유효성 검증"""
         if v < 1:
@@ -205,7 +210,8 @@ class CartItemUpdate(BaseModel):
     """장바구니 아이템 수정 스키마"""
     quantity: int
     
-    @validator('quantity')
+    @field_validator('quantity')
+    @classmethod
     def validate_quantity(cls, v):
         """수량 유효성 검증"""
         if v < 1:
@@ -244,3 +250,55 @@ class ErrorResponse(BaseModel):
     detail: str
     error_code: Optional[str] = None
     success: bool = False 
+
+# === 챗봇 관련 스키마 ===
+
+class ChatButton(BaseModel):
+    """챗봇 버튼 스키마"""
+    text: str
+    action: str
+
+class ChatProduct(BaseModel):
+    """챗봇 상품 추천 스키마"""
+    id: int
+    name: str
+    price: float
+    image_url: Optional[str] = None
+    type: Optional[str] = None
+
+class ChatMessageRequest(BaseModel):
+    """챗봇 메시지 요청 스키마"""
+    message: Optional[str] = None
+    conversation_id: Optional[str] = None
+    action: Optional[str] = None
+    
+    @field_validator('message')
+    @classmethod
+    def validate_message(cls, v):
+        """메시지 유효성 검증"""
+        if len(v.strip()) == 0:
+            raise ValueError('메시지는 비어있을 수 없습니다')
+        if len(v) > 1000:
+            raise ValueError('메시지는 1000자 이하여야 합니다')
+        return v.strip()
+
+class ChatMessageResponse(BaseModel):
+    """챗봇 메시지 응답 스키마"""
+    message: str
+    conversation_id: str
+    buttons: Optional[List[ChatButton]] = []
+    products: Optional[List[ChatProduct]] = []
+
+class ProductRecommendationRequest(BaseModel):
+    """상품 추천 요청 스키마"""
+    category: str
+    preferences: Optional[Dict[str, Any]] = {}
+    limit: Optional[int] = 5
+    
+    @field_validator('limit')
+    @classmethod
+    def validate_limit(cls, v):
+        """추천 상품 수 제한"""
+        if v < 1 or v > 20:
+            raise ValueError('추천 상품 수는 1-20개 사이여야 합니다')
+        return v

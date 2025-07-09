@@ -149,4 +149,15 @@ class UserSession(Base):
     expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
     
     # 관계 설정
-    user = relationship("User", back_populates="sessions") 
+    user = relationship("User", back_populates="sessions")
+
+class ChatHistory(Base):
+    """대화 이력 테이블 모델"""
+    __tablename__ = "chat_history"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # 비회원 가능
+    conversation_id = Column(String(64), nullable=True)
+    role = Column(String(16), nullable=False)  # 'user' or 'bot'
+    message = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now()) 

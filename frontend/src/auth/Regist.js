@@ -111,11 +111,11 @@ const Regist = () => {
         
         {/* 뒤로가기 버튼 */}
         <div className="flex justify-start mb-4">
-          <BackButton />
+          <BackButton className="ml-2 mt-2"/>
         </div>
 
         {/* 로고 섹션 */}
-        <div className="flex justify-center mb-8 mt-6">
+        <div className="flex justify-center mb-4">
           <img 
             src={JH} 
             alt="Logo" 
