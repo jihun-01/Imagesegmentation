@@ -161,6 +161,8 @@ class ChatHistory(Base):
     conversation_id = Column(String(64), nullable=True)
     role = Column(String(16), nullable=False)  # 'user' or 'bot'
     message = Column(Text, nullable=False)
+    buttons = Column(Text, nullable=True)  # JSON 형태로 버튼 정보 저장
+    products = Column(Text, nullable=True)  # JSON 형태로 상품 정보 저장
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class UserHandImage(Base):

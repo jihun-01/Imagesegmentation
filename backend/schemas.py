@@ -297,11 +297,14 @@ class ChatMessageRequest(BaseModel):
     message: Optional[str] = None
     conversation_id: Optional[str] = None
     action: Optional[str] = None
+    user_id: Optional[int] = None
     
     @field_validator('message')
     @classmethod
     def validate_message(cls, v):
         """메시지 유효성 검증"""
+        if v is None:
+            return v
         if len(v.strip()) == 0:
             raise ValueError('메시지는 비어있을 수 없습니다')
         if len(v) > 1000:

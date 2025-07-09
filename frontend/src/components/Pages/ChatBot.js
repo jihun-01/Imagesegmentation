@@ -16,7 +16,7 @@ import BackButton from '../Common/Buttons/BackButton';
 import imageicon from '../Assets/icons/imageicon.png';
 import sendicon from '../Assets/icons/sendicon.png';
 import shoppingcarticon from '../Assets/icons/shppingcarticon.png';
-import { getWishlistItems, getProducts, sendChatMessage, getHandImages, downloadHandImage, addToCart, addToWishlist } from '../../utils/api';
+import { getWishlistItems, getProducts, sendChatMessage, getChatHistory, getUserConversations, getLatestConversation, getHandImages, downloadHandImage, addToCart, addToWishlist } from '../../utils/api';
 import ProductCard from '../Common/Productcard/ProductCard';
 import { formatPrice } from '../../utils/formatUtils';
 
@@ -32,18 +32,8 @@ function ChatBot() {
   const [wishlistIds, setWishlistIds] = useState([]);
   const [conversationId, setConversationId] = useState(null);
   const [isTyping, setIsTyping] = useState(false);
-  const [messages, setMessages] = useState([
-    { 
-      role: 'bot', 
-      text: '안녕하세요! 쇼핑 도우미 챗봇입니다. 무엇을 도와드릴까요?',
-      buttons: [
-        { text: '상품 추천', action: 'product_recommend' },
-        { text: '주문 조회', action: 'order_inquiry' },
-        { text: '가격 문의', action: 'price_inquiry' },
-        { text: '고객센터', action: 'customer_service' },
-      ]
-    }
-  ]);
+  const [messages, setMessages] = useState([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [input, setInput] = useState('');
   const [handImages, setHandImages] = useState([]);
   const [isLoadingHandImages, setIsLoadingHandImages] = useState(false);
@@ -52,6 +42,101 @@ function ChatBot() {
   const [showImageModal, setShowImageModal] = useState(false);
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
+
+  // 채팅 히스토리 로드
+  useEffect(() => {
+    const loadChatHistory = async () => {
+      try {
+        setIsLoadingHistory(true);
+        
+        if (user?.id) {
+          // 로그인한 사용자의 경우, DB에서 최신 대화 조회
+          try {
+            const latestConversationResponse = await getLatestConversation(user.id);
+            
+            if (latestConversationResponse.conversation_id && latestConversationResponse.messages.length > 0) {
+              // DB에서 최신 대화가 있으면 로드
+              setConversationId(latestConversationResponse.conversation_id);
+              localStorage.setItem('chatbot_conversation_id', latestConversationResponse.conversation_id);
+              
+              // 히스토리 메시지를 프론트엔드 형식으로 변환
+              const formattedMessages = latestConversationResponse.messages.map(msg => ({
+                role: msg.role,
+                text: msg.text,
+                time: msg.time,
+                buttons: msg.buttons || [],
+                products: msg.products || []
+              }));
+              setMessages(formattedMessages);
+              return;
+            }
+          } catch (error) {
+            console.error('최신 대화 조회 실패:', error);
+          }
+          
+          // DB에서 대화를 찾지 못한 경우, 로컬 스토리지 확인
+          const savedConversationId = localStorage.getItem('chatbot_conversation_id');
+          if (savedConversationId) {
+            try {
+              const historyResponse = await getChatHistory(savedConversationId);
+              if (historyResponse.messages && historyResponse.messages.length > 0) {
+                setConversationId(savedConversationId);
+                const formattedMessages = historyResponse.messages.map(msg => ({
+                  role: msg.role,
+                  text: msg.text,
+                  time: msg.time,
+                  buttons: msg.buttons || [],
+                  products: msg.products || []
+                }));
+                setMessages(formattedMessages);
+                return;
+              }
+            } catch (error) {
+              console.error('저장된 대화 로드 실패:', error);
+              localStorage.removeItem('chatbot_conversation_id');
+            }
+          }
+        } else {
+          // 비로그인 상태이거나 로그아웃된 경우, conversation_id 초기화
+          localStorage.removeItem('chatbot_conversation_id');
+          setConversationId(null);
+        }
+        
+        // 저장된 대화가 없거나 로드 실패 시 초기 메시지 표시
+        setMessages([
+          { 
+            role: 'bot', 
+            text: '안녕하세요! 쇼핑 도우미 챗봇입니다. 무엇을 도와드릴까요?',
+            buttons: [
+              { text: '상품 추천', action: 'product_recommend' },
+              { text: '주문 조회', action: 'order_inquiry' },
+              { text: '가격 문의', action: 'price_inquiry' },
+              { text: '고객센터', action: 'customer_service' },
+            ]
+          }
+        ]);
+      } catch (error) {
+        console.error('채팅 히스토리 로드 실패:', error);
+        // 에러 시 초기 메시지 표시
+        setMessages([
+          { 
+            role: 'bot', 
+            text: '안녕하세요! 쇼핑 도우미 챗봇입니다. 무엇을 도와드릴까요?',
+            buttons: [
+              { text: '상품 추천', action: 'product_recommend' },
+              { text: '주문 조회', action: 'order_inquiry' },
+              { text: '가격 문의', action: 'price_inquiry' },
+              { text: '고객센터', action: 'customer_service' },
+            ]
+          }
+        ]);
+      } finally {
+        setIsLoadingHistory(false);
+      }
+    };
+
+    loadChatHistory();
+  }, [user?.id]); // user.id가 변경될 때마다 히스토리 다시 로드
 
   // 메시지 스크롤 자동 이동
   useEffect(() => {
@@ -87,38 +172,58 @@ function ChatBot() {
     loadProducts();
   }, []);
 
-  // 등록된 손 사진 로드
-  useEffect(() => {
-    const loadHandImages = async () => {
+  // 손사진 로드 함수
+  const loadHandImages = async (showLoading = true) => {
+    if (!user?.id) {
+      setHandImages([]);
+      return;
+    }
+    
+    if (showLoading) {
       setIsLoadingHandImages(true);
-      try {
-        const handImagesData = await getHandImages();
-        const handImagesWithBlobs = await Promise.all(
-          handImagesData.map(async (img) => {
-            try {
-              const blob = await downloadHandImage(img.id);
-              const url = URL.createObjectURL(blob);
-              return {
-                id: img.id,
-                url: url,
-                name: img.original_filename,
-                isDefault: img.is_default
-              };
-            } catch (error) {
-              console.error(`손 사진 ${img.id} 로드 실패:`, error);
-              return null;
-            }
-          })
-        );
-        setHandImages(handImagesWithBlobs.filter(img => img !== null));
-      } catch (error) {
-        console.error('손 사진 로드 실패:', error);
-      } finally {
+    }
+    
+    try {
+      const handImagesData = await getHandImages();
+      const handImagesWithBlobs = await Promise.all(
+        handImagesData.map(async (img) => {
+          try {
+            const blob = await downloadHandImage(img.id);
+            const url = URL.createObjectURL(blob);
+            return {
+              id: img.id,
+              url: url,
+              name: img.original_filename,
+              isDefault: img.is_default
+            };
+          } catch (error) {
+            console.error(`손 사진 ${img.id} 로드 실패:`, error);
+            return null;
+          }
+        })
+      );
+      
+      // 기존 Blob URL 정리
+      handImages.forEach(image => {
+        if (image.url && image.url.startsWith('blob:')) {
+          URL.revokeObjectURL(image.url);
+        }
+      });
+      
+      setHandImages(handImagesWithBlobs.filter(img => img !== null));
+    } catch (error) {
+      console.error('손 사진 로드 실패:', error);
+      setHandImages([]);
+    } finally {
+      if (showLoading) {
         setIsLoadingHandImages(false);
       }
-    };
+    }
+  };
 
-    loadHandImages();
+  // 등록된 손 사진 로드
+  useEffect(() => {
+    loadHandImages(true);
 
     // 컴포넌트 언마운트 시 Blob URL 정리
     return () => {
@@ -128,15 +233,45 @@ function ChatBot() {
         }
       });
     };
-  }, []);
+  }, [user?.id]); // user.id가 변경될 때마다 손사진 다시 로드
+
+  // 페이지 포커스 시 손사진 새로고침
+  useEffect(() => {
+    const handleFocus = () => {
+      if (user?.id) {
+        loadHandImages(false); // 로딩 표시 없이 새로고침
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [user?.id]);
+
+  // 페이지 가시성 변경 시 손사진 새로고침 (탭 전환 시)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && user?.id) {
+        loadHandImages(false); // 로딩 표시 없이 새로고침
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [user?.id]);
 
   // 백엔드로 메시지 전송
   const sendMessageToBackend = async (message, action) => {
     try {
       setIsTyping(true);
-      const response = await sendChatMessage(message, conversationId, action);
+      const response = await sendChatMessage(message, conversationId, action, user?.id);
       if (!conversationId && response.conversation_id) {
         setConversationId(response.conversation_id);
+        // 로컬 스토리지에 conversation_id 저장
+        localStorage.setItem('chatbot_conversation_id', response.conversation_id);
       }
       return response;
     } catch (error) {
@@ -167,16 +302,36 @@ function ChatBot() {
     
     // 봇 응답 추가
     setTimeout(() => {
-      setMessages(prev => [
-        ...prev,
-        { 
-          role: 'bot', 
-          text: response.message || '응답을 처리하는 중 오류가 발생했습니다.',
-          buttons: response.buttons || [],
-          products: response.products || [],
-          time: new Date().toLocaleTimeString() 
+      setMessages(prev => {
+        const next = [
+          ...prev,
+          { 
+            role: 'bot', 
+            text: response.message || '응답을 처리하는 중 오류가 발생했습니다.',
+            buttons: response.buttons || [],
+            products: response.products || [],
+            time: new Date().toLocaleTimeString() 
+          }
+        ];
+        
+        // 추가 안내 메시지 (상품이 없거나 특정 액션이 아닌 경우)
+        if (!response.products || response.products.length === 0) {
+          setTimeout(() => {
+            setMessages(current => [
+              ...next,
+              {
+                role: 'bot',
+                text: "더 필요한 것이 있으면 말씀해주세요.",
+                buttons: getDefaultButtons(),
+                products: [],
+                time: new Date().toLocaleTimeString()
+              }
+            ]);
+          }, 1000);
         }
-      ]);
+        
+        return next;
+      });
     }, 500);
   };
 
@@ -269,6 +424,24 @@ function ChatBot() {
             },
             time: new Date().toLocaleTimeString()
           };
+          
+          // 추가 안내 메시지를 포함한 최종 메시지 배열 생성
+          const finalMessages = [
+            ...newMessages,
+            {
+              role: 'bot',
+              text: "더 필요한 것이 있으면 말씀해주세요.",
+              buttons: getWearButtons(),
+              products: [],
+              time: new Date().toLocaleTimeString()
+            }
+          ];
+          
+          // 1초 후에 추가 안내 메시지 표시
+          setTimeout(() => {
+            setMessages(finalMessages);
+          }, 1000);
+          
           return newMessages;
         });
       } else {
@@ -387,7 +560,7 @@ function ChatBot() {
       }, 200);
 
       setTimeout(() => {
-        navigate('/user-settings');
+        navigate('/settings');
       }, 1000);
       return;
     }
@@ -423,33 +596,16 @@ function ChatBot() {
     
     if (response.products && response.products.length > 0) {
       // 상품 추천 응답 처리
-      setMessages(prev => {
-        const next = [
-          ...prev,
-          {
-            role: 'bot',
-            text: response.message,
-            buttons: response.buttons || [],
-            products: response.products,
-            time: new Date().toLocaleTimeString()
-          }
-        ];
-        
-        // 추가 안내 메시지
-        setTimeout(() => {
-          setMessages(current => [
-            ...next,
-            {
-              role: 'bot',
-              text: "더 필요한 것이 있으면 말씀해주세요.",
-              buttons: getDefaultButtons(),
-              products: [],
-              time: new Date().toLocaleTimeString()
-            }
-          ]);
-        }, 1000);
-        return next;
-      });
+      setMessages(prev => [
+        ...prev,
+        {
+          role: 'bot',
+          text: response.message,
+          buttons: response.buttons || [],
+          products: response.products,
+          time: new Date().toLocaleTimeString()
+        }
+      ]);
     } else {
       // 일반 응답 처리
       setMessages(prev => [
@@ -475,6 +631,14 @@ function ChatBot() {
     ];
   };
 
+  const getWearButtons = () => {
+    return [
+      { text: '장바구니', action: 'go_to_cart' },
+      { text: '찜 목록', action: 'go_to_wishlist' },
+      { text: '처음으로 돌아가기', action: 'greeting' }
+    ];
+  };
+
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col items-center py-4 overflow-hidden">
       {/* 메인 컨테이너 */}
@@ -494,7 +658,15 @@ function ChatBot() {
           <div className="space-y-4">
             <div className="text-center">
               <div className="flex-1 flex flex-col gap-2 overflow-y-auto">
-                {messages.map((msg, idx) => (
+                {/* 채팅 히스토리 로딩 중 */}
+                {isLoadingHistory && (
+                  <div className="flex justify-center items-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600"></div>
+                    <span className="ml-2 text-gray-600 text-sm">채팅 기록을 불러오는 중...</span>
+                  </div>
+                )}
+                
+                {!isLoadingHistory && messages.map((msg, idx) => (
                   <div
                     key={idx}
                     className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
@@ -623,7 +795,7 @@ function ChatBot() {
                 ))}
                 
                 {/* 타이핑 인디케이터 */}
-                {isTyping && (
+                {!isLoadingHistory && isTyping && (
                   <div className="flex justify-start">
                     <div className="max-w-[70%] text-left">
                       <div className="px-3 py-2 rounded-xl text-sm bg-white text-gray-800">

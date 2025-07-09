@@ -292,14 +292,36 @@ export const getStoredUserInfo = () => {
 };
 
 // 챗봇 메시지 전송
-export const sendChatMessage = async (message, conversationId, action) => {
+export const sendChatMessage = async (message, conversationId, action, userId = null) => {
   return apiRequest('/chatbot/message', {
     method: 'POST',
     body: JSON.stringify({
       message,
       action,
-      conversation_id: conversationId
+      conversation_id: conversationId,
+      user_id: userId
     }),
+  });
+};
+
+// 채팅 히스토리 조회
+export const getChatHistory = async (conversationId) => {
+  return apiRequest(`/chatbot/history/${conversationId}`, {
+    method: 'GET',
+  });
+};
+
+// 사용자 대화 목록 조회
+export const getUserConversations = async (userId) => {
+  return apiRequest(`/chatbot/conversations?user_id=${userId}`, {
+    method: 'GET',
+  });
+};
+
+// 사용자 최신 대화 조회
+export const getLatestConversation = async (userId) => {
+  return apiRequest(`/chatbot/latest-conversation/${userId}`, {
+    method: 'GET',
   });
 };
 

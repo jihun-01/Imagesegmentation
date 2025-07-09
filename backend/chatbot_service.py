@@ -7,11 +7,12 @@
 
 import re
 import uuid
+import json
 from typing import List, Dict, Any, Optional, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, desc
 
-from models import Product, Category
+from models import Product, Category, ChatHistory
 from schemas import ChatButton, ChatProduct, ChatMessageResponse, ProductRecommendationRequest
 
 class RuleBasedChatbot:
@@ -195,33 +196,62 @@ class RuleBasedChatbot:
             for product in products
         ]
 
-    def generate_response(self, message: str, conversation_id: Optional[str] = None) -> ChatMessageResponse:
+    def save_chat_message(self, conversation_id: str, role: str, message: str, user_id: Optional[int] = None, buttons: Optional[List[ChatButton]] = None, products: Optional[List[ChatProduct]] = None):
+        """채팅 메시지를 DB에 저장"""
+        try:
+            # 버튼과 상품 정보를 JSON으로 변환
+            buttons_json = json.dumps([{"text": btn.text, "action": btn.action} for btn in buttons]) if buttons else None
+            products_json = json.dumps([{"id": prod.id, "name": prod.name, "price": prod.price, "image_url": prod.image_url, "type": prod.type} for prod in products]) if products else None
+            
+            chat = ChatHistory(
+                user_id=user_id,
+                conversation_id=conversation_id,
+                role=role,
+                message=message,
+                buttons=buttons_json,
+                products=products_json
+            )
+            self.db.add(chat)
+            self.db.commit()
+        except Exception as e:
+            print(f"채팅 메시지 저장 실패: {e}")
+            self.db.rollback()
+
+    def generate_response(self, message: str, conversation_id: Optional[str] = None, user_id: Optional[int] = None) -> ChatMessageResponse:
         """메시지에 대한 응답 생성"""
         if not conversation_id:
             conversation_id = self.generate_conversation_id()
+        
+        # 사용자 메시지 저장
+        self.save_chat_message(conversation_id, "user", message, user_id)
         
         # 패턴 매칭
         matched_patterns = self.match_pattern(message)
         
         # 응답 생성
         if 'greeting' in matched_patterns:
-            return self._create_greeting_response(conversation_id)
+            response = self._create_greeting_response(conversation_id)
         elif 'product_inquiry' in matched_patterns:
-            return self._create_product_inquiry_response(message, conversation_id)
+            response = self._create_product_inquiry_response(message, conversation_id)
         elif 'price_inquiry' in matched_patterns:
-            return self._create_price_inquiry_response(conversation_id)
+            response = self._create_price_inquiry_response(conversation_id)
         elif 'category_inquiry' in matched_patterns:
-            return self._create_category_inquiry_response(message, conversation_id)
+            response = self._create_category_inquiry_response(message, conversation_id)
         elif 'order_inquiry' in matched_patterns:
-            return self._create_order_inquiry_response(conversation_id)
+            response = self._create_order_inquiry_response(conversation_id)
         elif 'return_inquiry' in matched_patterns:
-            return self._create_return_inquiry_response(conversation_id)
+            response = self._create_return_inquiry_response(conversation_id)
         elif 'help' in matched_patterns:
-            return self._create_help_response(conversation_id)
+            response = self._create_help_response(conversation_id)
         elif 'goodbye' in matched_patterns:
-            return self._create_goodbye_response(conversation_id)
+            response = self._create_goodbye_response(conversation_id)
         else:
-            return self._create_default_response(conversation_id)
+            response = self._create_default_response(conversation_id)
+        
+        # 봇 응답 저장 (버튼과 상품 정보 포함)
+        self.save_chat_message(conversation_id, "bot", response.message, user_id, response.buttons, response.products)
+        
+        return response
 
     def _create_greeting_response(self, conversation_id: str) -> ChatMessageResponse:
         """인사말 응답 생성"""
@@ -386,7 +416,7 @@ class RuleBasedChatbot:
             products=[]
         )
 
-    def handle_action(self, action: str, conversation_id: str) -> ChatMessageResponse:
+    def handle_action(self, action: str, conversation_id: str, user_id: Optional[int] = None) -> ChatMessageResponse:
         """액션에 따른 응답 처리"""
         action_handlers = {
             "popular_products": self._handle_popular_products,
@@ -405,12 +435,48 @@ class RuleBasedChatbot:
             "customer_service": self._handle_customer_service,
             "go_to_cart": self._handle_go_to_cart,
             "order_history": self._handle_order_history,
+            "wishlist_inquiry": self._handle_wishlist_inquiry,
             "faq": self._handle_faq,
             "greeting": self._handle_greeting
         }
         
         handler = action_handlers.get(action, self._handle_unknown_action)
-        return handler(conversation_id)
+        # user_id가 필요한 핸들러에만 전달
+        if action in ["order_history", "order_inquiry", "go_to_cart", "wishlist_inquiry"]:
+            response = handler(conversation_id, user_id)
+        else:
+            response = handler(conversation_id)
+        
+        # 액션에 따른 적절한 사용자 메시지 생성
+        action_messages = {
+            "product_recommend": "상품 추천",
+            "price_inquiry": "가격 문의",
+            "order_inquiry": "주문 조회",
+            "customer_service": "고객센터",
+            "popular_products": "인기 상품 보기",
+            "category_metal": "메탈 시계",
+            "category_leather": "가죽 시계",
+            "category_smart": "스마트워치",
+            "price_under_100k": "10만원 이하",
+            "price_100k_200k": "10-20만원",
+            "price_200k_300k": "20-30만원",
+            "price_300k_400k": "30-40만원",
+            "price_400k_500k": "40-50만원",
+            "price_over_500k": "50만원 이상",
+            "go_to_cart": "장바구니 가기",
+            "order_history": "주문 내역 확인",
+            "faq": "자주 묻는 질문",
+            "greeting": "처음으로 돌아가기"
+        }
+        
+        user_message = action_messages.get(action, f"버튼 클릭: {action}")
+        
+        # 액션 메시지 저장
+        self.save_chat_message(conversation_id, "user", user_message, user_id)
+        # 봇 응답 저장 (버튼과 상품 정보 포함)
+        self.save_chat_message(conversation_id, "bot", response.message, user_id, response.buttons, response.products)
+        
+        return response
 
     def _handle_popular_products(self, conversation_id: str) -> ChatMessageResponse:
         """인기 상품 처리"""
@@ -554,19 +620,32 @@ class RuleBasedChatbot:
             products=[]
         )
 
-    def _handle_order_inquiry(self, conversation_id: str) -> ChatMessageResponse:
+    def _handle_order_inquiry(self, conversation_id: str, user_id: Optional[int] = None) -> ChatMessageResponse:
         """주문 문의 처리"""
-        return ChatMessageResponse(
-            message="주문 관련 안내입니다:\n• 결제 후 1-2일 내 배송\n• 무료배송 (5만원 이상)\n• 카드/계좌이체 결제 가능",
-            conversation_id=conversation_id,
-            buttons=[
-                ChatButton(text="인기 상품 보기", action="popular_products"),
-                ChatButton(text="장바구니 가기", action="go_to_cart"),
-                ChatButton(text="찜 목록 보기", action="wishlist_inquiry"),
-                ChatButton(text='처음으로 돌아가기', action='greeting')
-            ],
-            products=[]
-        )
+        if user_id:
+            return ChatMessageResponse(
+                message="주문 관련 안내입니다:\n• 결제 후 1-2일 내 배송\n• 무료배송 (5만원 이상)\n• 카드/계좌이체 결제 가능\n\n로그인하신 상태입니다. 주문 내역을 확인하실 수 있습니다.",
+                conversation_id=conversation_id,
+                buttons=[
+                    ChatButton(text="인기 상품 보기", action="popular_products"),
+                    ChatButton(text="장바구니 가기", action="go_to_cart"),
+                    ChatButton(text="찜 목록 보기", action="wishlist_inquiry"),
+                    ChatButton(text="주문 내역 확인", action="order_history"),
+                    ChatButton(text='처음으로 돌아가기', action='greeting')
+                ],
+                products=[]
+            )
+        else:
+            return ChatMessageResponse(
+                message="주문 관련 안내입니다:\n• 결제 후 1-2일 내 배송\n• 무료배송 (5만원 이상)\n• 카드/계좌이체 결제 가능\n\n로그인하시면 주문 내역과 장바구니를 확인하실 수 있습니다.",
+                conversation_id=conversation_id,
+                buttons=[
+                    ChatButton(text="인기 상품 보기", action="popular_products"),
+                    ChatButton(text="로그인하기", action="login"),
+                    ChatButton(text='처음으로 돌아가기', action='greeting')
+                ],
+                products=[]
+            )
 
     def _handle_customer_service(self, conversation_id: str) -> ChatMessageResponse:
         """고객센터 처리"""
@@ -581,30 +660,76 @@ class RuleBasedChatbot:
             products=[]
         )
 
-    def _handle_go_to_cart(self, conversation_id: str) -> ChatMessageResponse:
+    def _handle_go_to_cart(self, conversation_id: str, user_id: Optional[int] = None) -> ChatMessageResponse:
         """장바구니 이동 처리"""
-        return ChatMessageResponse(
-            message="장바구니로 이동합니다. 담은 상품을 확인해보세요!",
-            conversation_id=conversation_id,
-            buttons=[
-                ChatButton(text="상품 더 보기", action="popular_products"),
-                ChatButton(text='처음으로 돌아가기', action='greeting')
-            ],
-            products=[]
-        )
+        if user_id:
+            return ChatMessageResponse(
+                message="장바구니로 이동합니다. 담은 상품을 확인해보세요!",
+                conversation_id=conversation_id,
+                buttons=[
+                    ChatButton(text="상품 더 보기", action="popular_products"),
+                    ChatButton(text='처음으로 돌아가기', action='greeting')
+                ],
+                products=[]
+            )
+        else:
+            return ChatMessageResponse(
+                message="장바구니를 이용하려면 로그인이 필요합니다.",
+                conversation_id=conversation_id,
+                buttons=[
+                    ChatButton(text="로그인하기", action="login"),
+                    ChatButton(text="상품 보기", action="popular_products"),
+                    ChatButton(text='처음으로 돌아가기', action='greeting')
+                ],
+                products=[]
+            )
 
-    def _handle_order_history(self, conversation_id: str) -> ChatMessageResponse:
+    def _handle_order_history(self, conversation_id: str, user_id: Optional[int] = None) -> ChatMessageResponse:
         """주문 내역 처리"""
-        return ChatMessageResponse(
-            message="주문 내역을 확인하려면 로그인이 필요합니다.",
-            conversation_id=conversation_id,
-            buttons=[
-                ChatButton(text="로그인하기", action="login"),
-                ChatButton(text="상품 보기", action="popular_products"),
-                ChatButton(text='처음으로 돌아가기', action='greeting')
-            ],
-            products=[]
-        )
+        if user_id:
+            return ChatMessageResponse(
+                message="주문 내역을 확인하려면 주문 페이지로 이동해주세요.",
+                conversation_id=conversation_id,
+                buttons=[
+                    ChatButton(text="상품 보기", action="popular_products"),
+                    ChatButton(text='처음으로 돌아가기', action='greeting')
+                ],
+                products=[]
+            )
+        else:
+            return ChatMessageResponse(
+                message="주문 내역을 확인하려면 로그인이 필요합니다.",
+                conversation_id=conversation_id,
+                buttons=[
+                    ChatButton(text="상품 보기", action="popular_products"),
+                    ChatButton(text='처음으로 돌아가기', action='greeting')
+                ],
+                products=[]
+            )
+
+    def _handle_wishlist_inquiry(self, conversation_id: str, user_id: Optional[int] = None) -> ChatMessageResponse:
+        """찜 목록 문의 처리"""
+        if user_id:
+            return ChatMessageResponse(
+                message="찜 목록으로 이동합니다. 찜한 상품을 확인해보세요!",
+                conversation_id=conversation_id,
+                buttons=[
+                    ChatButton(text="상품 더 보기", action="popular_products"),
+                    ChatButton(text='처음으로 돌아가기', action='greeting')
+                ],
+                products=[]
+            )
+        else:
+            return ChatMessageResponse(
+                message="찜 목록을 이용하려면 로그인이 필요합니다.",
+                conversation_id=conversation_id,
+                buttons=[
+                    ChatButton(text="로그인하기", action="login"),
+                    ChatButton(text="상품 보기", action="popular_products"),
+                    ChatButton(text='처음으로 돌아가기', action='greeting')
+                ],
+                products=[]
+            )
 
     def _handle_faq(self, conversation_id: str) -> ChatMessageResponse:
         """FAQ 처리"""

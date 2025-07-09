@@ -60,6 +60,11 @@ async def upload_hand_image(
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
+        # 사용자의 기존 손사진 개수 확인
+        existing_count = db.query(UserHandImage).filter(
+            UserHandImage.user_id == current_user.id
+        ).count()
+        
         # 데이터베이스에 기록
         db_hand_image = UserHandImage(
             user_id=current_user.id,
@@ -67,7 +72,8 @@ async def upload_hand_image(
             original_filename=file.filename,
             file_path=file_path,
             file_size=file.size,
-            content_type=file.content_type
+            content_type=file.content_type,
+            is_default=(existing_count == 0)  # 첫 번째 사진이면 자동으로 기본 설정
         )
         
         db.add(db_hand_image)
@@ -222,6 +228,9 @@ async def delete_hand_image(
         )
     
     try:
+        # 삭제할 사진이 기본 설정인지 확인
+        is_deleting_default = hand_image.is_default
+        
         # 파일 삭제
         if os.path.exists(hand_image.file_path):
             os.remove(hand_image.file_path)
@@ -229,6 +238,16 @@ async def delete_hand_image(
         # 데이터베이스에서 삭제
         db.delete(hand_image)
         db.commit()
+        
+        # 삭제된 사진이 기본 설정이었고, 남은 사진이 있다면 첫 번째 사진을 기본으로 설정
+        if is_deleting_default:
+            remaining_images = db.query(UserHandImage).filter(
+                UserHandImage.user_id == current_user.id
+            ).order_by(UserHandImage.created_at.asc()).first()
+            
+            if remaining_images:
+                remaining_images.is_default = True
+                db.commit()
         
         return {"message": "손 사진이 삭제되었습니다"}
         

@@ -76,6 +76,9 @@ export const AuthProvider = ({ children }) => {
     logoutUser();
     setUser(null);
     setIsLoggedIn(false);
+    
+    // 채팅 히스토리 초기화
+    localStorage.removeItem('chatbot_conversation_id');
   };
 
   // 사용자 정보 업데이트
