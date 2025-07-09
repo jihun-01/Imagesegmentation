@@ -6,6 +6,7 @@ import VirtualWear from "./components/Pages/VirtualWear";
 import VirtualResult from "./components/Pages/VirtualResult";
 import Login from "./components/Pages/Login";
 import ChatBot from "./components/Pages/ChatBot";
+import UserSettings from "./components/Pages/UserSettings";
 import NotFound from "./components/Pages/NotFound";
 
 
@@ -29,6 +30,7 @@ function App() {
           <Route path="/cart" element={<Cart />} />
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/chatbot" element={<ChatBot />} />
+          <Route path="/settings" element={<UserSettings />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

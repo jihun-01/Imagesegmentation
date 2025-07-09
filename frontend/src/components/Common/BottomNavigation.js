@@ -51,13 +51,12 @@ const BottomNavigation = ({
       
       {/* 사용자 버튼 - 로그인 상태에 따라 다르게 표시 */}
       {isLoggedIn ? (
-        <button 
-          className="flex flex-col items-center" 
-          onClick={onLogout}
-        >
-          <img src={usericon} alt="usericon" className="w-6 h-6" />
-          <span className="text-xs">{user?.name || '로그아웃'}</span>
-        </button>
+        <Link to="/settings">
+          <button className="flex flex-col items-center">
+            <img src={usericon} alt="usericon" className="w-6 h-6" />
+            <span className="text-xs">{user?.name || '설정'}</span>
+          </button>
+        </Link>
       ) : (
         <Link to="/login">
           <button className="flex flex-col items-center">

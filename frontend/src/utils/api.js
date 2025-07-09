@@ -329,4 +329,98 @@ export const getProductRecommendations = async (category, userPreferences = {}) 
     console.error('상품 추천 요청 실패:', error);
     throw error;
   }
+};
+
+// ===== 사용자 설정 관련 API =====
+
+/**
+ * 손 사진 업로드
+ * @param {File} file - 업로드할 이미지 파일
+ */
+export const uploadHandImage = async (file) => {
+  const url = `${API_URL}/user-settings/hand-images/upload`;
+  
+  // FormData 생성
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  // 토큰 가져오기
+  const token = tokenStorage.getToken('access_token');
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+    body: formData,
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || `HTTP ${response.status}`);
+  }
+  
+  return await response.json();
+};
+
+/**
+ * 손 사진 목록 조회
+ */
+export const getHandImages = async () => {
+  return apiRequest('/user-settings/hand-images');
+};
+
+/**
+ * 손 사진 상세 정보 조회
+ * @param {number} imageId - 이미지 ID
+ */
+export const getHandImage = async (imageId) => {
+  return apiRequest(`/user-settings/hand-images/${imageId}`);
+};
+
+/**
+ * 손 사진 다운로드 URL 생성
+ * @param {number} imageId - 이미지 ID
+ */
+export const getHandImageDownloadUrl = (imageId) => {
+  return `${API_URL}/user-settings/hand-images/${imageId}/download`;
+};
+
+/**
+ * 손 사진 다운로드 (인증 헤더 포함)
+ * @param {number} imageId - 이미지 ID
+ */
+export const downloadHandImage = async (imageId) => {
+  const token = tokenStorage.getToken('access_token');
+  const response = await fetch(`${API_URL}/user-settings/hand-images/${imageId}/download`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+  
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+  
+  return response.blob();
+};
+
+/**
+ * 기본 손 사진 설정
+ * @param {number} imageId - 이미지 ID
+ */
+export const setDefaultHandImage = async (imageId) => {
+  return apiRequest(`/user-settings/hand-images/${imageId}/set-default`, {
+    method: 'PUT',
+  });
+};
+
+/**
+ * 손 사진 삭제
+ * @param {number} imageId - 이미지 ID
+ */
+export const deleteHandImage = async (imageId) => {
+  return apiRequest(`/user-settings/hand-images/${imageId}`, {
+    method: 'DELETE',
+  });
 }; 

@@ -141,17 +141,44 @@ async def update_current_user(
     """
     현재 로그인한 사용자의 정보 수정
     
-    - **name**: 실명 수정
+    - **username**: 닉네임 수정
     - **phone**: 전화번호 수정
     - **address**: 주소 수정
-    - **password**: 비밀번호 변경
+    - **password**: 비밀번호 변경 (current_password와 함께 제공)
     """
     
     # 수정할 필드만 업데이트
     update_data = user_update.dict(exclude_unset=True)
     
-    # 비밀번호 변경 시 해싱
+    # username 변경 시 중복 체크
+    if "username" in update_data:
+        existing_user = db.query(User).filter(
+            User.username == update_data["username"],
+            User.id != current_user.id
+        ).first()
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="이미 사용 중인 닉네임입니다"
+            )
+    
+    # 비밀번호 변경 시 현재 비밀번호 확인
     if "password" in update_data:
+        current_password = update_data.pop("current_password", None)
+        if not current_password:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="현재 비밀번호를 입력해주세요"
+            )
+        
+        # 현재 비밀번호 검증
+        if not authenticate_user(db, current_user.email, current_password):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="현재 비밀번호가 올바르지 않습니다"
+            )
+        
+        # 새 비밀번호 해싱
         update_data["password_hash"] = get_password_hash(update_data.pop("password"))
     
     # 사용자 정보 업데이트
@@ -161,7 +188,21 @@ async def update_current_user(
     try:
         db.commit()
         db.refresh(current_user)
-        return current_user
+        
+        # 응답에서 password_hash 제외
+        response_data = {
+            "id": current_user.id,
+            "username": current_user.username,
+            "email": current_user.email,
+            "name": current_user.name,
+            "phone": current_user.phone,
+            "address": current_user.address,
+            "is_active": current_user.is_active,
+            "created_at": current_user.created_at,
+            "updated_at": current_user.updated_at
+        }
+        
+        return response_data
         
     except IntegrityError:
         db.rollback()

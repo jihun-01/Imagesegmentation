@@ -93,10 +93,36 @@ class UserResponse(UserBase):
 
 class UserUpdate(BaseModel):
     """사용자 정보 수정 스키마"""
-    name: Optional[str] = None
+    username: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
     password: Optional[str] = None
+    current_password: Optional[str] = None
+    
+    @field_validator('username')
+    @classmethod
+    def validate_username(cls, v):
+        """사용자명 유효성 검증"""
+        if v is not None:
+            if len(v) < 3:
+                raise ValueError('닉네임은 최소 3자 이상이어야 합니다')
+            if len(v) > 20:
+                raise ValueError('닉네임은 20자 이하여야 합니다')
+            if not v.isalnum():
+                raise ValueError('닉네임은 영문자와 숫자만 사용 가능합니다')
+        return v
+    
+    @field_validator('phone')
+    @classmethod
+    def validate_phone(cls, v):
+        """전화번호 유효성 검증"""
+        if v is not None and v.strip():
+            # 전화번호 형식 검증 (한국 전화번호)
+            import re
+            phone_pattern = re.compile(r'^01[0-9]-?[0-9]{3,4}-?[0-9]{4}$')
+            if not phone_pattern.match(v.replace('-', '')):
+                raise ValueError('올바른 전화번호 형식을 입력해주세요 (예: 010-1234-5678)')
+        return v
     
     @field_validator('password')
     @classmethod
@@ -302,3 +328,28 @@ class ProductRecommendationRequest(BaseModel):
         if v < 1 or v > 20:
             raise ValueError('추천 상품 수는 1-20개 사이여야 합니다')
         return v
+
+# === 사용자 손 사진 관련 스키마 ===
+
+class UserHandImageBase(BaseModel):
+    """사용자 손 사진 기본 스키마"""
+    filename: str
+    original_filename: str
+    file_size: int
+    content_type: str
+    is_default: bool = False
+
+class UserHandImageCreate(UserHandImageBase):
+    """사용자 손 사진 생성 요청 스키마"""
+    file_path: str
+
+class UserHandImageResponse(UserHandImageBase):
+    """사용자 손 사진 응답 스키마"""
+    id: int
+    user_id: int
+    file_path: str
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True

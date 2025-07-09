@@ -1,27 +1,30 @@
 """
 가상 시계 착용 백엔드 API 서버
-- 이미지 리사이징 서비스 (WatchStore용)
+- 이미지 리사이징 서비스
 - 가상 시계 착용 처리
 - 손 영역 및 시계 영역 추출
 - 손목 위치 분석 및 각도 계산
 """
 
+import os
+import io
+import uuid
+import hashlib
+import base64
+from typing import Optional
+
+import cv2
+import numpy as np
+from PIL import Image
 from fastapi import FastAPI, File, UploadFile, HTTPException, Form, BackgroundTasks, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-import cv2
-import numpy as np
-import io
-from PIL import Image
-import base64
-import os
-from typing import Optional
-import uuid
-import hashlib
-from hand_watch_segmentation import HandWatchSegmentation
-from dotenv import load_dotenv
-from models import ChatHistory
 from sqlalchemy.orm import Session
+from dotenv import load_dotenv
+
+# 로컬 모듈 임포트
+from hand_watch_segmentation import HandWatchSegmentation
+from models import ChatHistory, Product
 
 # 라우터 임포트
 from routes.auth import router as auth_router
@@ -29,13 +32,23 @@ from routes.products import router as products_router
 from routes.cart import router as cart_router
 from routes.wishlist import router as wishlist_router
 from routes.chatbot import router as chatbot_router
+from routes.user_settings import router as user_settings_router
 
 # 보안 미들웨어 임포트
 from security_middleware import SecurityMiddleware, RequestSizeMiddleware
 
 # 데이터베이스 관련 임포트
-from database import SessionLocal, get_db
-from models import Product
+from database import get_db
+
+# 환경변수 로드
+load_dotenv()
+
+# 상수 정의
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+CORS_ALLOW_CREDENTIALS = os.getenv("CORS_ALLOW_CREDENTIALS", "true").lower() == "true"
+MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE_MB", "10")) * 1024 * 1024
+ALLOWED_FILE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"]
+RESIZED_DIR = "resized"
 
 # FastAPI 애플리케이션 인스턴스 생성
 app = FastAPI(
@@ -44,75 +57,75 @@ app = FastAPI(
     description="상품리스트 조회, 장바구니, 위시리스트, 가상 시계 착용 기능 제공"
 )
 
-# 환경변수 로드
-load_dotenv()
+# 미들웨어 설정
+def setup_middleware():
+    """미들웨어 설정"""
+    # 보안 미들웨어 등록 (순서 중요!)
+    app.add_middleware(SecurityMiddleware, max_requests=2000, time_window=60)
+    app.add_middleware(RequestSizeMiddleware, max_size=10*1024*1024)
+    
+    # CORS 미들웨어
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=ALLOWED_ORIGINS,
+        allow_credentials=CORS_ALLOW_CREDENTIALS,
+        allow_methods=["GET", "POST", "PUT", "DELETE"],
+        allow_headers=["*"],
+    )
 
-# CORS 설정 (보안 강화)
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
-CORS_ALLOW_CREDENTIALS = os.getenv("CORS_ALLOW_CREDENTIALS", "true").lower() == "true"
-
-# 보안 미들웨어 등록 (순서 중요!)
-app.add_middleware(SecurityMiddleware, max_requests=2000, time_window=60)  # Rate Limiting (개발용: 2000회/분)
-app.add_middleware(RequestSizeMiddleware, max_size=10*1024*1024)  # 요청 크기 제한
-
-# CORS 미들웨어
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,      # 허용된 도메인만 접근 허용
-    allow_credentials=CORS_ALLOW_CREDENTIALS,  # 쿠키 포함 요청 허용
-    allow_methods=["GET", "POST", "PUT", "DELETE"],  # 필요한 HTTP 메서드만 허용
-    allow_headers=["*"],               # 모든 헤더 허용 (필요시 제한 가능)
-)
-
-# AI 세그멘테이션 시스템 초기화 (앱 시작 시 모델 로딩)
-segmenter = HandWatchSegmentation()
-
-# 파일 저장 디렉토리 설정
-RESIZED_DIR = "resized"                # 리사이징된 이미지 저장 폴더
-
-# 필요한 디렉토리 생성
-os.makedirs(RESIZED_DIR, exist_ok=True)
-
-# 정적 파일 서빙은 개별 엔드포인트에서 처리 (MIME 타입 정확성을 위해)
+# 시스템 초기화
+def initialize_system():
+    """시스템 초기화"""
+    # AI 세그멘테이션 시스템 초기화
+    global segmenter
+    segmenter = HandWatchSegmentation()
+    
+    # 필요한 디렉토리 생성
+    os.makedirs(RESIZED_DIR, exist_ok=True)
 
 # 라우터 등록
-app.include_router(auth_router)
-app.include_router(products_router)
-app.include_router(cart_router)
-app.include_router(wishlist_router)
-app.include_router(chatbot_router)
+def register_routers():
+    """라우터 등록"""
+    app.include_router(auth_router)
+    app.include_router(products_router)
+    app.include_router(cart_router)
+    app.include_router(wishlist_router)
+    app.include_router(chatbot_router)
+    app.include_router(user_settings_router)
 
-@app.get("/", tags=["root"], summary="API 상태 확인")
-async def root():
-    """
-    API 루트 엔드포인트 - 서버 실행 상태 확인
-    """
-    return {"message": "가상 시계 착용 API가 실행 중입니다."}
+# 시스템 초기화 실행
+setup_middleware()
+initialize_system()
+register_routers()
 
-@app.get("/health", tags=["root"], summary="서버 헬스체크")
-async def health_check():
+def is_valid_image(file_bytes: bytes) -> bool:
     """
-    서버 상태 확인 엔드포인트
-    - 로드밸런서나 모니터링 시스템에서 사용
+    이미지 파일의 매직 넘버를 확인하여 유효성 검증
+    
+    Args:
+        file_bytes: 파일 바이트 데이터
+        
+    Returns:
+        bool: 유효한 이미지 파일 여부
     """
-    return {"status": "healthy", "message": "서버가 정상 작동 중입니다."}
-
-@app.get("/debug/client-info", tags=["root"], summary="클라이언트 정보 디버깅")
-async def debug_client_info(request: Request):
-    """
-    클라이언트 접속 정보 확인 (디버깅용)
-    - 네트워크 문제 해결 시 사용
-    - 클라이언트 IP, 헤더, URL 정보 반환
-    """
-    client_host = request.client.host if request.client else "Unknown"
-    return {
-        "client_host": client_host,
-        "headers": dict(request.headers),
-        "url": str(request.url),
-        "method": request.method
+    if len(file_bytes) < 4:
+        return False
+    
+    # 이미지 파일 시그니처 (매직 넘버) 확인
+    signatures = {
+        b'\xff\xd8\xff': 'JPEG',
+        b'\x89\x50\x4e\x47\x0d\x0a\x1a\x0a': 'PNG',
+        b'\x52\x49\x46\x46': 'WEBP',  # RIFF 헤더 (WEBP 포함)
+        b'\x47\x49\x46\x38': 'GIF'
     }
+    
+    for signature in signatures:
+        if file_bytes.startswith(signature):
+            return True
+    
+    return False
 
-def resize_and_save(image_bytes, save_path):
+def resize_and_save(image_bytes: bytes, save_path: str):
     """
     백그라운드 이미지 리사이징 처리 함수
     - 원본 비율 유지하면서 최대 300x300 크기로 리사이징
@@ -149,37 +162,40 @@ def resize_and_save(image_bytes, save_path):
     except Exception as e:
         pass  # 에러 시 조용히 실패
 
-# 파일 보안 설정
-MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE_MB", "10")) * 1024 * 1024  # MB를 바이트로 변환
-ALLOWED_FILE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"]
+def save_chat_history(db: Session, user_id: Optional[str], conversation_id: str, role: str, message: str):
+    """채팅 히스토리 저장"""
+    chat = ChatHistory(
+        user_id=user_id,
+        conversation_id=conversation_id,
+        role=role,
+        message=message
+    )
+    db.add(chat)
+    db.commit()
 
-def is_valid_image(file_bytes: bytes) -> bool:
-    """
-    이미지 파일의 매직 넘버를 확인하여 유효성 검증
-    
-    Args:
-        file_bytes: 파일 바이트 데이터
-        
-    Returns:
-        bool: 유효한 이미지 파일 여부
-    """
-    if len(file_bytes) < 4:
-        return False
-    
-    # 이미지 파일 시그니처 (매직 넘버) 확인
-    signatures = {
-        b'\xff\xd8\xff': 'JPEG',
-        b'\x89\x50\x4e\x47\x0d\x0a\x1a\x0a': 'PNG',
-        b'\x52\x49\x46\x46': 'WEBP',  # RIFF 헤더 (WEBP 포함)
-        b'\x47\x49\x46\x38': 'GIF'
+# 루트 엔드포인트
+@app.get("/", tags=["root"], summary="API 상태 확인")
+async def root():
+    """API 루트 엔드포인트 - 서버 실행 상태 확인"""
+    return {"message": "가상 시계 착용 API가 실행 중입니다."}
+
+@app.get("/health", tags=["root"], summary="서버 헬스체크")
+async def health_check():
+    """서버 상태 확인 엔드포인트"""
+    return {"status": "healthy", "message": "서버가 정상 작동 중입니다."}
+
+@app.get("/debug/client-info", tags=["root"], summary="클라이언트 정보 디버깅")
+async def debug_client_info(request: Request):
+    """클라이언트 접속 정보 확인 (디버깅용)"""
+    client_host = request.client.host if request.client else "Unknown"
+    return {
+        "client_host": client_host,
+        "headers": dict(request.headers),
+        "url": str(request.url),
+        "method": request.method
     }
-    
-    for signature in signatures:
-        if file_bytes.startswith(signature):
-            return True
-    
-    return False
 
+# 이미지 리사이징 엔드포인트
 @app.post("/resize-image", tags=["이미지 리사이징"], summary="상품 이미지 리사이징")
 async def resize_image(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
     """
@@ -196,7 +212,6 @@ async def resize_image(background_tasks: BackgroundTasks, file: UploadFile = Fil
     Returns:
         dict: 처리 상태 및 이미지 URL 정보
     """
-    
     try:
         # 보안 강화된 파일 검증
         if not file.content_type or file.content_type not in ALLOWED_FILE_TYPES:
@@ -287,6 +302,7 @@ async def get_resized_image(filename: str):
         }
     )
 
+# 가상 시계 착용 엔드포인트
 @app.post("/virtual-try-on", tags=["가상 시계 착용"], summary="AI 가상 시계 착용")
 async def virtual_try_on(
     hand_image: UploadFile = File(...),
@@ -340,7 +356,7 @@ async def virtual_try_on(
         # 고유 세션 ID 생성
         session_id = str(uuid.uuid4())
         
-        response_data = {
+        return {
             "success": True,
             "message": "가상 착용이 성공적으로 완료되었습니다.",
             "result": {
@@ -349,10 +365,6 @@ async def virtual_try_on(
                 "watch_id": watch_id
             }
         }
-        
-
-        
-        return response_data
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"가상 착용 처리 중 오류: {str(e)}")
@@ -471,19 +483,10 @@ async def extract_watch_region(watch_image: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"시계 영역 추출 중 오류: {str(e)}")
 
-def save_chat_history(db, user_id, conversation_id, role, message):
-    chat = ChatHistory(
-        user_id=user_id,
-        conversation_id=conversation_id,
-        role=role,
-        message=message
-    )
-    db.add(chat)
-    db.commit()
-
-# 예시: 챗봇 응답 처리 부분에서 사용
+# 챗봇 엔드포인트
 @app.post("/chat")
 async def chat_endpoint(request: Request, db: Session = Depends(get_db)):
+    """챗봇 대화 엔드포인트"""
     data = await request.json()
     user_id = data.get("user_id")  # 로그인 안 했으면 None
     conversation_id = data.get("conversation_id")
@@ -503,10 +506,6 @@ async def chat_endpoint(request: Request, db: Session = Depends(get_db)):
 # 개발 모드에서 서버 직접 실행
 if __name__ == "__main__":
     import uvicorn
-    import os
-    from dotenv import load_dotenv
-    
-    load_dotenv()
     
     # 환경변수에서 설정 로드
     host = os.getenv("API_HOST", "0.0.0.0")

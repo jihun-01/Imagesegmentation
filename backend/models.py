@@ -39,6 +39,7 @@ class User(Base):
     wishlist_items = relationship("WishlistItem", back_populates="user", cascade="all, delete-orphan")
     orders = relationship("Order", back_populates="user", cascade="all, delete-orphan")
     sessions = relationship("UserSession", back_populates="user", cascade="all, delete-orphan")
+    hand_images = relationship("UserHandImage", back_populates="user", cascade="all, delete-orphan")
 
 class Category(Base):
     """카테고리 테이블 모델"""
@@ -160,4 +161,22 @@ class ChatHistory(Base):
     conversation_id = Column(String(64), nullable=True)
     role = Column(String(16), nullable=False)  # 'user' or 'bot'
     message = Column(Text, nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now()) 
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class UserHandImage(Base):
+    """사용자 손 사진 테이블 모델"""
+    __tablename__ = "user_hand_images"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    filename = Column(String(255), nullable=False)
+    original_filename = Column(String(255), nullable=False)
+    file_path = Column(String(500), nullable=False)
+    file_size = Column(Integer, nullable=False)
+    content_type = Column(String(100), nullable=False)
+    is_default = Column(Boolean, default=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    # 관계 설정
+    user = relationship("User", back_populates="hand_images") 
